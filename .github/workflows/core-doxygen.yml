@@ -22,7 +22,7 @@ jobs:
       - name: GH Pages Deployment
         uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: ${{ secrets.GH_DOC_TOKEN }}   # Use the secret we added
+          personal_token: ${{ secrets.GH_DOC_TOKEN }}   # Use the secret we added
           external_repository: glacial-discharge-downscaling/glacial-discharge-downscaling-doc
           publish_dir: ./docs/html/
           enable_jekyll: false
