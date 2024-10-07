@@ -1,9 +1,11 @@
 import distribution_fitting as dsf
 import downscaling_computations as dc
 import fit_metrics as fm
+import min_max_fitting as mmf
 import numpy as np
 import pandas as pd
-from preprocessing import convert_to_hydrobricks_units
+from preprocessing import (bootstrapping_observed_FDCs,
+                           convert_to_hydrobricks_units)
 
 ##################################### Arolla ##############################################################
 catchments = ['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'] # Ordered by area.
@@ -80,7 +82,7 @@ for catchment in catchments:
     dsf.find_and_save_best_pdf_functions(meteo_df, functions_filename, function)
     weather_kde_dict = dsf.KDE_computations(meteo_df, function, weather=True)
     kde_dict = dsf.KDE_computations(meteo_df, function, weather=False)
-    qmin_regr, qmax_regr, qmin_multi_regr, qmax_multi_regr = dc.extract_discharge_relation_to_daily_mean(meteo_df, linear_regr_filename, criteria=['Ice melt', 'Snow melt'])
+    qmin_regr, qmax_regr, qmin_multi_regr, qmax_multi_regr = mmf.extract_discharge_relation_to_daily_mean(meteo_df, linear_regr_filename, criteria=['Ice melt', 'Snow melt'])
     observed_daily_discharge_FDCs_df = dc.apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function, observed_daily_discharge,
                                                                             qmin_regr, qmax_regr, observed_daily_discharge_FDC_output_file,
                                                                             results, subdaily_nb=96)
@@ -97,7 +99,7 @@ for catchment in catchments:
 
     print("Catchment", catchment)
 
-    observed_FDCs_df, cleaned_observed_FDCs_df, all_bootstrapped_FDCs_dfs = dc.bootstrapping_observed_FDCs(subdaily_discharge, observed_FDCs_output_file, months)
+    observed_FDCs_df, cleaned_observed_FDCs_df, all_bootstrapped_FDCs_dfs = bootstrapping_observed_FDCs(subdaily_discharge, observed_FDCs_output_file, months)
     all_bootstrapped_FDCs_dfs.to_csv(f"{path}Outputs/Arolla/bootstrapped_FDCs_example.csv")
     ref_nse = fm.compute_reference_metric(all_bootstrapped_FDCs_dfs, cleaned_observed_FDCs_df, 'nse')
     ref_kge = fm.compute_reference_metric(all_bootstrapped_FDCs_dfs, cleaned_observed_FDCs_df, 'kge_2012')

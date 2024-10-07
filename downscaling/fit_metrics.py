@@ -2,6 +2,7 @@ import hydrobricks as hb
 import numpy as np
 import pandas as pd
 import pymannkendall as mk
+from extract_hydrological_variables import select_months
 
 
 def mann_kendall_tests(meteo_df, results):
@@ -75,7 +76,7 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metric):
     simulated_FDCs_df.reset_index(inplace=True)
     simulated_FDCs_df['year'] = pd.DatetimeIndex(simulated_FDCs_df['Date']).year
     simulated_FDCs_df = simulated_FDCs_df.set_index('Date')
-    simulated_FDCs_df = fc.select_months(simulated_FDCs_df, months)
+    simulated_FDCs_df = select_months(simulated_FDCs_df, months)
 
     # Get rid of the last day of bissextile years (leap years) to always have years of 365 days.
     # We choose this day as it is already done in this way in the data gathered for Arolla.

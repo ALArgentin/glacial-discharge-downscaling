@@ -1,20 +1,15 @@
-# Standard library imports
 import csv
 import sys
 from datetime import datetime
 
-# Local application/library-specific imports
 import distribution_fitting as dsf
 import extract_hydrological_variables as fc
-# Third-party imports
 import numpy as np
 import pandas as pd
 import pome_fitting as fit
 import scipy.stats as stats
 from preprocessing import get_statistics, retrieve_subdaily_discharge
 from scipy.optimize import curve_fit
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error, r2_score
 
 
 def simulate_a_flow_duration_curve(params, q_min, q_max, M, function="Singh2014"):
@@ -274,43 +269,6 @@ def apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function,
 
     return FDCs_df
 
-def recreate_stacked_FDCs_from_observed_subdaily_discharge(subdaily_discharge, observed_FDCs_output_file):
-
-    # Observed discharge
-    df = pd.read_csv(subdaily_discharge, header=0, na_values='', usecols=[0, 1],
-                     parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
-    df.rename(columns={df.columns[1]: 'Discharge'}, inplace=True)
-    index = df.index
-    df['Date'] = df['Date'].dt.normalize()
-
-    # Select the dates
-    date1 = df['Date'].values[0]
-    date2 = df['Date'].values[-1]
-
-    # Create the observed FDCs
-    FDCs_df = pd.DataFrame()
-    for day in pd.date_range(start=date1, end=date2):
-        observed_subdaily_discharge = df[df['Date'] == day]
-        dfs = observed_subdaily_discharge.sort_values(by='Discharge', ascending=False)
-        assert len(dfs) == 96 or len(dfs) == 0
-        FDCs_df = pd.concat([FDCs_df, dfs])
-
-    # Recreate the 15-min simulation intervals for the FDCs
-    number_of_measures = len(FDCs_df["Date"]) # Without bisextile days
-    number_of_days = len(FDCs_df["Date"]) / 96
-    in_day_increment = list(range(96)) * int(number_of_days)
-
-    # Add the 15-min intervals to the datetimes
-    stacked_FDCs_time = [FDCs_df["Date"].iloc[i] + np.timedelta64(in_day_increment[i] * 15, 'm') for i in range(number_of_measures)]
-
-    # Recreate the 15-min simulation intervals for the FDCs
-    FDCs_df.index = stacked_FDCs_time
-    FDCs_df.drop("Date", axis=1, inplace=True)
-    FDCs_df.index.name = "Date"
-
-    FDCs_df.to_csv(observed_FDCs_output_file)
-
-    return FDCs_df
 
 
 

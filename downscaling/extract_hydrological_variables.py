@@ -78,7 +78,7 @@ def process_content_snow(results_file, component, weight_area, div_area):
     comp_w = comp * weight_area
     # Divide by the area of interest
     comp = np.sum(comp_w, axis=1) / div_area
-    comp = fc.select_months_in_year(comp, 2010)
+    comp = select_months_in_year(comp, 2010)
     return comp, comp_w
 
 def extract_meteorological_data(forcing_file, hydro_units_file, with_debris, melt_model):
@@ -195,7 +195,7 @@ def get_meteorological_hydrological_data(forcing_file, results_file, hydro_units
     #meteo_df["glacier_area_icemelt_storage"] = comp7_m
     #meteo_df["glacier_area_icemelt_storage outflow"] = comp8_m
     meteo_df = meteo_df.set_index(precipitations.index)
-    meteo_df = fc.select_months(meteo_df, months)
+    meteo_df = select_months(meteo_df, months)
     #melt_m = melt_m.loc[pd.to_datetime(date1):pd.to_datetime(date2)]
 
     return meteo_df

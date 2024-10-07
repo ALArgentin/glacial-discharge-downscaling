@@ -1,3 +1,9 @@
+import csv
+
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+
+
 def linear_regression_with_scikit(q_mean, q_min_max):
 
     regr = LinearRegression().fit(q_mean, q_min_max)
