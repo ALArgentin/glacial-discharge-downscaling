@@ -4,10 +4,11 @@ import csv
 import numpy as np
 import scipy.stats as stats
 
+
 def test_different_functions(meteo_df, variable):
-    
+
     data = meteo_df[variable].dropna().values
-    
+
     # Fit Distributions
     # Lognormal distribution
     sigma, loc1, scale1 = stats.lognorm.fit(data)
@@ -17,13 +18,13 @@ def test_different_functions(meteo_df, variable):
     a, b, loc3, scale3 = stats.beta.fit(data)
     # Normal distribution
     loc4, scale4 = stats.norm.fit(data)
-    
+
     # Evaluate Distributions
     lognormal_test = stats.kstest(data, stats.lognorm.cdf, args=(sigma, loc1, scale1))
     gamma_test = stats.kstest(data, stats.gamma.cdf, args=(shape, loc2, scale2))
     beta_test = stats.kstest(data, stats.beta.cdf, args=(a, b, loc3, scale3))
     norm_test = stats.kstest(data, stats.norm.cdf, args=(loc4, scale4))
-    
+
     # Select Best Distribution
     if norm_test.statistic < lognormal_test.statistic and norm_test.statistic < gamma_test.statistic and norm_test.statistic < beta_test.statistic:
         type = 'normal'
@@ -46,7 +47,7 @@ def test_different_functions(meteo_df, variable):
     return type, params, statis
 
 def find_and_save_best_pdf_functions(meteo_df, filename, function):
-    
+
     a_type, a_params, a_stats = test_different_functions(meteo_df, "$a$")
     b_type, b_params, b_stats = test_different_functions(meteo_df, "$b$")
     if function == "Sigmoid_d" or function == "Sigmoid":
@@ -56,7 +57,7 @@ def find_and_save_best_pdf_functions(meteo_df, filename, function):
     M_type, M_params, M_stats = test_different_functions(meteo_df, "$M$")
     Qmin_type, Qmin_params, Qmin_stats = test_different_functions(meteo_df, "$Q_{min}$")
     Qmax_type, Qmax_params, Qmax_stats = test_different_functions(meteo_df, "$Q_{max}$")
-    
+
     with open(filename, 'w') as out:
         csv_out = csv.writer(out)
         csv_out.writerow(['variable', 'type', 'params', 'stats'])
@@ -69,13 +70,13 @@ def find_and_save_best_pdf_functions(meteo_df, filename, function):
         csv_out.writerow(["$M$", M_type, M_params, M_stats])
         csv_out.writerow(["$Q_{min}$", Qmin_type, Qmin_params, Qmin_stats])
         csv_out.writerow(["$Q_{max}$", Qmax_type, Qmax_params, Qmax_stats])
-        
-        
-        
-        
+
+
+
+
 
 def get_KDE_model(meteo_df, variable, weather=False):
-    
+
     if weather:
         weather_list = ['Freezing', 'Melting', 'Raining', 'Snowing']
         # Categorize according to weather
@@ -84,23 +85,23 @@ def get_KDE_model(meteo_df, variable, weather=False):
         meteo_df.loc[(meteo_df["Temperature"] > 0), "Weather"] = 'Melting'
         meteo_df.loc[(meteo_df["Precipitation"] > 0) & (meteo_df["Temperature"] > 0), "Weather"] = 'Raining'
         meteo_df.loc[(meteo_df["Precipitation"] > 0) & (meteo_df["Temperature"] <= 0), "Weather"] = 'Snowing'
-    
+
         kdes = []
         for state in weather_list:
             state_data = meteo_df.loc[(meteo_df["Weather"] == state), variable].dropna().values
-            
+
             # KDE modelisation
             kde = stats.gaussian_kde(state_data)
             kdes.append(kde)
         return kdes, weather_list
-        
+
     else:
         data = meteo_df[variable].dropna().values
-        
+
         # KDE modelisation
         kde = stats.gaussian_kde(data)
         return kde, None
-    
+
 def add_to_kde_dict(kde_dict, kde, var, weather_list):
     if weather_list:
         for state, k in zip(weather_list, kde):
@@ -110,20 +111,20 @@ def add_to_kde_dict(kde_dict, kde, var, weather_list):
         kde_dict[var] = kde
 
 def KDE_computations(meteo_df, function, weather=False):
-    
+
     kde_dict = {}
-    
+
     for var in ["$a$", "$b$", "$M$", "$Q_{min}$", "$Q_{max}$"]:
         kde, weather_list = get_KDE_model(meteo_df, var, weather=weather)
         add_to_kde_dict(kde_dict, kde, var, weather_list)
-    
+
     if function == "Sigmoid_d" or function == "Sigmoid":
         kde, weather_list = get_KDE_model(meteo_df, "$c$", weather=weather)
         add_to_kde_dict(kde_dict, kde, "$c$", weather_list)
     if function == "Sigmoid_d":
         kde, weather_list = get_KDE_model(meteo_df, "$d$", weather=weather)
         add_to_kde_dict(kde_dict, kde, "$d$", weather_list)
-    
+
     return kde_dict
 
 def sample_weather_distribs(var, kde_dict, state_of_days):

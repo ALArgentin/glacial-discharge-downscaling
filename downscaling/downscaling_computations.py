@@ -3,20 +3,18 @@ import csv
 import sys
 from datetime import datetime
 
-# Third-party imports
-import hydrobricks as hb
-import numpy as np
-import pandas as pd
-from scipy.optimize import curve_fit
-import scipy.stats as stats
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_squared_error, r2_score
-
 # Local application/library-specific imports
 import distribution_fitting as dsf
 import extract_hydrological_variables as fc
+# Third-party imports
+import numpy as np
+import pandas as pd
 import pome_fitting as fit
-from preprocessing import retrieve_subdaily_discharge, get_statistics
+import scipy.stats as stats
+from preprocessing import get_statistics, retrieve_subdaily_discharge
+from scipy.optimize import curve_fit
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
 
 
 def simulate_a_flow_duration_curve(params, q_min, q_max, M, function="Singh2014"):
@@ -30,7 +28,7 @@ def simulate_a_flow_duration_curve(params, q_min, q_max, M, function="Singh2014"
             a, b, c, d = params
         elif function == "Sigmoid":
             a, b, c = params
-    
+
     # Generate fitted curve for plotting
     t_fit = np.linspace(0, 1, 96)
     if function == "Singh2014":
@@ -39,12 +37,12 @@ def simulate_a_flow_duration_curve(params, q_min, q_max, M, function="Singh2014"
         y_fit = discharge_time_equation_Sigmoid_d(t_fit, a, b, c, d, q_min, q_max, M)
     elif function == "Sigmoid":
         y_fit = discharge_time_equation_Sigmoid(t_fit, a, b, c, q_min, q_max, M)
-    
+
     # Return the simulated discharge
     return y_fit
 
 def calibration_workflow(meteo_df, filename, function, dataframe_filename, results, months_str):
-    
+
     # Determined parameter lists
     a_array = []
     b_array = []
@@ -56,7 +54,7 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
     qmean_array = []
     h_array = []
     r2_array = []
-    
+
     # In-between results needed for plotting
     x_data1_df = pd.DataFrame(columns=np.arange(96))
     y_data1_df = pd.DataFrame(columns=np.arange(96))
@@ -68,20 +66,20 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
     t_fit2_df = pd.DataFrame(columns=np.arange(96))
     y_fit2_df = pd.DataFrame(columns=np.arange(96))
     r22_df = pd.DataFrame(columns=[0])
-    
+
     # Open the discharge dataset and get all data points from the requested date
-    df = pd.read_csv(filename, header=0, na_values='', usecols=[0, 1], 
+    df = pd.read_csv(filename, header=0, na_values='', usecols=[0, 1],
                      parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
     df.rename(columns={df.columns[1]: 'Discharge'}, inplace=True)
     # Change the index format
     df.index = pd.to_datetime(df.iloc[:,0].values, format='%Y-%m-%d')
     df_str_index = df.index.strftime('%Y-%m-%d')
-    
+
     daily_df = df.groupby(pd.Grouper(freq='D')).mean()
     daily_summer_df = fc.select_months(daily_df, months)
-    
+
     start_t = datetime.now()
-    
+
     date_range = np.unique(fc.select_months(df, months).index.strftime('%Y-%m-%d'))
     for i, day in enumerate(date_range):
         if day.endswith("-06-01"):
@@ -114,14 +112,14 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
                 a, b, c, d = params
             elif function == "Sigmoid":
                 a, b, c = params
-                
+
         if function == "Sigmoid_d":
             c_array.append(c)
             d_array.append(d)
         elif function == "Sigmoid":
             c_array.append(c)
         h = stats.entropy(observed_subdaily_discharge)[0]
-        
+
         a_array.append(a)
         b_array.append(b)
         M_array.append(M)
@@ -130,7 +128,7 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
         qmean_array.append(q_mean)
         h_array.append(h)
     print("End of calibration.")
-    
+
     meteo_df = meteo_df.reindex(daily_summer_df.index, fill_value=np.nan, method='nearest', tolerance='2min')
 
     meteo_df["$a$"] = a_array
@@ -147,7 +145,7 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
     meteo_df["Entropy"] = h_array
     meteo_df['Day of the year'] = daily_summer_df.index.dayofyear
     meteo_df.to_csv(dataframe_filename)
-    
+
     x_data1_df.to_csv(f"{results}x_data1_df_{function}_{months_str}.csv")
     y_data1_df.to_csv(f"{results}y_data1_df_{function}_{months_str}.csv")
     x_fit1_df.to_csv(f"{results}x_fit1_df_{function}_{months_str}.csv")
@@ -161,29 +159,29 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
 
 
 
-def apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function, 
+def apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function,
                                          daily_discharge, qmin_regr, qmax_regr,
-                                         FDC_output_file, path, subdaily_nb, 
+                                         FDC_output_file, path, subdaily_nb,
                                          modeled=False, criteria=None):
     print("Starting the downscaling of the discharge.")
-    
+
     # Open the discharge dataset and get all mean daily discharge data
     if modeled:
-        df = pd.read_csv(daily_discharge, header=0, na_values='', usecols=[0, 1], 
+        df = pd.read_csv(daily_discharge, header=0, na_values='', usecols=[0, 1],
                          parse_dates=['Date'], date_format='%d/%m/%Y', index_col=0)
     else:
         df = pd.read_csv(daily_discharge, header=0, na_values='', usecols=[0, 1],
                          parse_dates=['Date'], date_format='%d/%m/%Y', index_col=0)
     df.rename(columns={df.columns[0]: 'Discharge'}, inplace=True)
     df = fc.select_months(df, months)
-    
+
     # Asserts
     if months == [6, 7, 8, 9]:
         years = df.index.year.unique()
         for y in years:
             assert len(df.loc[df.index.strftime('%Y') == str(y)]) == 122
     np.set_printoptions(threshold=sys.maxsize)
-            
+
     # Get the days where the measured discharge is not available, and remove them,
     # as the computations after cannot handle NaNs.
     nan_indices = (df['Discharge'].isnull() == True).values
@@ -197,16 +195,16 @@ def apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function,
             arr = (meteo_df[c].isnull() == True).values
             nan_indices = (nan_indices | arr)
     qmean_distrib = qmean_distrib.fillna(-99999)
-    
+
     # Use the mean daily discharge data to infer the minimum and maximum daily discharges
     qmin_distrib = qmin_regr.predict(qmean_distrib)
     qmax_distrib = qmax_regr.predict(qmean_distrib)
-    
+
     # Put the NaNs back in
     qmean_distrib[nan_indices] = np.nan
     qmin_distrib[nan_indices] = np.nan
     qmax_distrib[nan_indices] = np.nan
-    
+
     # Take the distributions to sample them
     nb_days = len(df)
     if len(kde_dict) > 7:
@@ -222,7 +220,7 @@ def apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function,
         b_distrib = kde_dict["$b$"].resample(nb_days)[0]
         c_distrib = kde_dict["$c$"].resample(nb_days)[0]
         M_distrib = kde_dict["$M$"].resample(nb_days)[0]
-    
+
     all_y_fits = []
     for i, day in enumerate(df.index):
         print(i, day)
@@ -238,7 +236,7 @@ def apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function,
         print("a", a, "b", b, "c", c, "q_min", q_min, "q_max", q_max)
     #    if not np.isnan(q_max) and not np.isnan(q_min):
     #        assert q_max >= q_min
-        
+
         # Generate fitted curve for plotting
         t_fit = np.linspace(0, 1, subdaily_nb)
         if function == "Singh2014":
@@ -247,20 +245,20 @@ def apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function,
             y_fit = fit.discharge_time_equation_Sigmoid_d(t_fit, a, b, c, d, q_min, q_max, M)
         elif function == "Sigmoid":
             y_fit = fit.discharge_time_equation_Sigmoid(t_fit, a, b, c, q_min, q_max, M)
-            
+
         print("Min, Max, ", np.min(y_fit), np.max(y_fit))
-        
+
         all_y_fits.extend(y_fit)
-    
+
     # Recreate the 15-min simulation intervals for the FDCs
     number_of_days = len(df.index)
     in_day_increment = list(range(96)) * int(number_of_days)
-    
+
     # Add the 15-min intervals to the datetimes
     FDCs_time = [day + np.timedelta64(i * 15, 'm') for day in df.index for i in range(96)]
     FDCs_df = pd.DataFrame({'Date': FDCs_time, 'Discharge': all_y_fits})
     FDCs_df = FDCs_df.set_index('Date')
-    
+
 #    # Asserts (working but super long)
 #    if months == [6, 7, 8, 9]:
 #        years = FDCs_df.index.year.unique()
@@ -271,24 +269,24 @@ def apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function,
     pd.DataFrame(b_distrib).to_csv(path + "b_distrib.csv")
     pd.DataFrame(c_distrib).to_csv(path + "c_distrib.csv")
     pd.DataFrame(M_distrib).to_csv(path + "M_distrib.csv")
-    
+
     FDCs_df.to_csv(FDC_output_file)
-    
+
     return FDCs_df
 
 def recreate_stacked_FDCs_from_observed_subdaily_discharge(subdaily_discharge, observed_FDCs_output_file):
-    
+
     # Observed discharge
-    df = pd.read_csv(subdaily_discharge, header=0, na_values='', usecols=[0, 1], 
+    df = pd.read_csv(subdaily_discharge, header=0, na_values='', usecols=[0, 1],
                      parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
     df.rename(columns={df.columns[1]: 'Discharge'}, inplace=True)
     index = df.index
     df['Date'] = df['Date'].dt.normalize()
-    
+
     # Select the dates
     date1 = df['Date'].values[0]
     date2 = df['Date'].values[-1]
-    
+
     # Create the observed FDCs
     FDCs_df = pd.DataFrame()
     for day in pd.date_range(start=date1, end=date2):
@@ -301,17 +299,17 @@ def recreate_stacked_FDCs_from_observed_subdaily_discharge(subdaily_discharge, o
     number_of_measures = len(FDCs_df["Date"]) # Without bisextile days
     number_of_days = len(FDCs_df["Date"]) / 96
     in_day_increment = list(range(96)) * int(number_of_days)
-    
+
     # Add the 15-min intervals to the datetimes
     stacked_FDCs_time = [FDCs_df["Date"].iloc[i] + np.timedelta64(in_day_increment[i] * 15, 'm') for i in range(number_of_measures)]
-    
+
     # Recreate the 15-min simulation intervals for the FDCs
     FDCs_df.index = stacked_FDCs_time
     FDCs_df.drop("Date", axis=1, inplace=True)
     FDCs_df.index.name = "Date"
-    
+
     FDCs_df.to_csv(observed_FDCs_output_file)
-    
+
     return FDCs_df
 
 
