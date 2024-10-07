@@ -3,10 +3,10 @@ name: Pre-Commit Checks
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
     branches:
-      - main  # trigger on PRs as well
+      - master  # trigger on PRs as well
 
 jobs:
   pre-commit:
