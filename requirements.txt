@@ -1,0 +1,6 @@
+hydrobricks
+numpy
+pandas
+pymannkendall
+scipy
+sklearn
