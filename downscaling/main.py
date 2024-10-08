@@ -4,6 +4,7 @@ import fit_metrics as fm
 import min_max_fitting as mmf
 import numpy as np
 import pandas as pd
+from extract_hydrological_variables import get_meteorological_hydrological_data
 from preprocessing import (bootstrapping_observed_FDCs,
                            convert_to_hydrobricks_units)
 
@@ -11,7 +12,7 @@ from preprocessing import (bootstrapping_observed_FDCs,
 catchments = ['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'] # Ordered by area.
 function = "Sigmoid" #"Singh2014" "Sigmoid" "Sigmoid_d"
 months = [6, 7, 8, 9]
-calibrate = False
+calibrate = True
 
 ### Paths
 path = "/home/anne-laure/Documents/Datasets/"
@@ -32,7 +33,7 @@ if calibrate:
         ###########################################################################################################
         meteo_df = get_meteorological_hydrological_data(forcing_file, results_file, hydro_units_file, months,
                                                         melt_model='degree_day', with_debris=False)
-        dc.calibration_workflow(meteo_df, subdaily_discharge, function, dataframe_filename, results, months_str)
+        dc.calibration_workflow(meteo_df, subdaily_discharge, function, dataframe_filename, results, months, months_str)
 
 # List of catchments and the metric names
 metrics = ["catchments", "ref_nses", "ref_kges", "odd_nses", "odd_kges", "wodd_nses", "wodd_kges", "mwodd_nses", "mwodd_kges", "sdd_nses", "sdd_kges"]

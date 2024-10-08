@@ -1,5 +1,6 @@
 import hydrobricks as hb
 import numpy as np
+import pandas as pd
 
 
 def extract_snow_water_eq(results_file, component):
@@ -73,7 +74,7 @@ def process_content_snow(results_file, component, weight_area, div_area):
     # -> Not up to date: also ok to use this function for fluxes.
 
     # Retrieve the hydro unit parameters
-    comp = fc.extract_snow_water_eq(results_file, component)
+    comp = extract_snow_water_eq(results_file, component)
     # Weight the parameters by the areas
     comp_w = comp * weight_area
     # Divide by the area of interest
@@ -134,26 +135,26 @@ def select_months(df, months):
 
 def get_meteorological_hydrological_data(forcing_file, results_file, hydro_units_file, months, melt_model, with_debris):
 
-    hydro_units, precipitations, temperatures, radiations, pet = fc.extract_meteorological_data(forcing_file, hydro_units_file,
+    hydro_units, precipitations, temperatures, radiations, pet = extract_meteorological_data(forcing_file, hydro_units_file,
                                                                                              with_debris=with_debris, melt_model=melt_model)
     elevations = hydro_units['elevation', 'm']
     areas = hydro_units['area', 'm2']
     total_area = np.sum(areas)
 
     # Get ground, glacier and total areas for each hydro unit
-    hy_ground_areas, hy_glacier_areas = fc.extract_hydro_unit_characteristics(results_file)
+    hy_ground_areas, hy_glacier_areas = extract_hydro_unit_characteristics(results_file)
     total_ground_area = np.sum(hy_ground_areas, axis=1)
     total_glacier_area = np.sum(hy_glacier_areas, axis=1)
 
     # Process all :content components
-    comp1_m, _ = fc.process_content_snow(results_file, "glacier:outflow_rain_snowmelt:output", hy_glacier_areas.values, total_glacier_area)
-    comp2_m, comp2_w = fc.process_content_snow(results_file, "glacier:melt:output",            hy_glacier_areas.values, total_glacier_area)
-    comp3_m, comp3_w = fc.process_content_snow(results_file, "ground_snowpack:melt:output",    hy_ground_areas.values,  total_ground_area)
-    comp4_m, comp4_w = fc.process_content_snow(results_file, "glacier_snowpack:melt:output",   hy_glacier_areas.values, total_glacier_area)
-    comp5_m, comp5_w = fc.process_content_snow(results_file, "ground_snowpack:snow",     hy_ground_areas.values,  total_ground_area)
-    comp6_m, comp6_w = fc.process_content_snow(results_file, "glacier_snowpack:snow",    hy_glacier_areas.values, total_glacier_area)
-    comp7_m = fc.extract_snow_water_eq_agg(results_file, "glacier_area_icemelt_storage:content")
-    comp8_m = fc.extract_snow_water_eq_agg(results_file, "glacier_area_icemelt_storage:outflow:output")
+    comp1_m, _ = process_content_snow(results_file, "glacier:outflow_rain_snowmelt:output", hy_glacier_areas.values, total_glacier_area)
+    comp2_m, comp2_w = process_content_snow(results_file, "glacier:melt:output",            hy_glacier_areas.values, total_glacier_area)
+    comp3_m, comp3_w = process_content_snow(results_file, "ground_snowpack:melt:output",    hy_ground_areas.values,  total_ground_area)
+    comp4_m, comp4_w = process_content_snow(results_file, "glacier_snowpack:melt:output",   hy_glacier_areas.values, total_glacier_area)
+    comp5_m, comp5_w = process_content_snow(results_file, "ground_snowpack:snow",     hy_ground_areas.values,  total_ground_area)
+    comp6_m, comp6_w = process_content_snow(results_file, "glacier_snowpack:snow",    hy_glacier_areas.values, total_glacier_area)
+    comp7_m = extract_snow_water_eq_agg(results_file, "glacier_area_icemelt_storage:content")
+    comp8_m = extract_snow_water_eq_agg(results_file, "glacier_area_icemelt_storage:outflow:output")
 
     precip_m = precipitations * areas
     precip_m = np.sum(precip_m, axis=1) / total_area

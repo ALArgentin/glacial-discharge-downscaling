@@ -9,7 +9,6 @@ import pandas as pd
 import pome_fitting as fit
 import scipy.stats as stats
 from preprocessing import get_statistics, retrieve_subdaily_discharge
-from scipy.optimize import curve_fit
 
 
 def simulate_a_flow_duration_curve(params, q_min, q_max, M, function="Singh2014"):
@@ -27,16 +26,16 @@ def simulate_a_flow_duration_curve(params, q_min, q_max, M, function="Singh2014"
     # Generate fitted curve for plotting
     t_fit = np.linspace(0, 1, 96)
     if function == "Singh2014":
-        y_fit = discharge_time_equation_Singh2014(t_fit, a, b, q_min, q_max, M)
+        y_fit = fit.discharge_time_equation_Singh2014(t_fit, a, b, q_min, q_max, M)
     elif function == "Sigmoid_d":
-        y_fit = discharge_time_equation_Sigmoid_d(t_fit, a, b, c, d, q_min, q_max, M)
+        y_fit = fit.discharge_time_equation_Sigmoid_d(t_fit, a, b, c, d, q_min, q_max, M)
     elif function == "Sigmoid":
-        y_fit = discharge_time_equation_Sigmoid(t_fit, a, b, c, q_min, q_max, M)
+        y_fit = fit.discharge_time_equation_Sigmoid(t_fit, a, b, c, q_min, q_max, M)
 
     # Return the simulated discharge
     return y_fit
 
-def calibration_workflow(meteo_df, filename, function, dataframe_filename, results, months_str):
+def calibration_workflow(meteo_df, filename, function, dataframe_filename, results, months, months_str):
 
     # Determined parameter lists
     a_array = []
@@ -82,14 +81,14 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
         observed_subdaily_discharge = retrieve_subdaily_discharge(df, df_str_index, day=day)
 
         # CAREFUL, in this function I switched X_data and y_data in the sigmoid functions.... Consequently also switched for the rest.
-        params, cov, x_data1, y_data1, x_fit1, y_fit1, r21 = fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge, function=function)
+        params, cov, x_data1, y_data1, x_fit1, y_fit1, r21 = fit.fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge, function=function)
         x_data1_df.loc[day] = x_data1
         y_data1_df.loc[day] = y_data1
         if len(x_fit1) != 0: x_fit1_df.loc[day] = x_fit1
         if len(y_fit1) != 0: y_fit1_df.loc[day] = y_fit1
         if r21: r21_df.loc[day] = r21
         q_min, q_mean, q_max = get_statistics(observed_subdaily_discharge)
-        M, var, x_data2, y_data2, t_fit2, y_fit2, r22 = fit_m_to_flow_duration_curve(observed_subdaily_discharge, params, q_min, q_max, function=function)
+        M, var, x_data2, y_data2, t_fit2, y_fit2, r22 = fit.fit_m_to_flow_duration_curve(observed_subdaily_discharge, params, q_min, q_max, function=function)
         x_data2_df.loc[day] = x_data2
         y_data2_df.loc[day] = y_data2
         if len(t_fit2) != 0: t_fit2_df.loc[day] = t_fit2

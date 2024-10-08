@@ -1,4 +1,6 @@
 import numpy as np
+from fit_metrics import compute_r2
+from scipy.optimize import curve_fit
 
 
 def func_Singh2014(x, a, b):
@@ -225,3 +227,6 @@ def fit_m_to_flow_duration_curve(observed_subdaily_discharge, params, q_min, q_m
 
     # Return the coefficient
     return M, variance, x_data, y_data, t_fit, y_fit, r2
+
+
+
