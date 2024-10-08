@@ -4,8 +4,13 @@ from scipy.optimize import curve_fit
 
 
 def func_Singh2014(x, a, b):
-    """
+    r"""
     Equation 18b of Singh et al. (2014).
+
+    @param x The input variable for the equation.
+    @param a Parameter 'a' of the equation.
+    @param b Parameter 'b' of the equation.
+    @return The result of the equation: \(1 - a \cdot x^b\)
     """
     return 1 - a * x**b
 
