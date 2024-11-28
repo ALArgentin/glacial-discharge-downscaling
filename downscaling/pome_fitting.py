@@ -5,64 +5,137 @@ from fit_metrics import compute_r2
 from scipy.optimize import curve_fit
 
 
-def func_Singh2014(x, a, b):
+def func_Singh2014(ratio, a, b):
     r"""!
     Equation 18b of Singh et al. (2014).
 
-    @param x The input variable for the equation.
+    @param ratio The ratio 't/T', with 't' the cumulative time for which
+    the discharge is less than the discharge corresponding to 't' in the
+    cumulative distribution function of the discharge over the period
+    considered and 'T' the period considered.
     @param a Parameter 'a' of the equation.
     @param b Parameter 'b' of the equation.
-    @return The result of the equation: \f$ \(1 - a \cdot x^b\) \f$
+    @return The cumulative distribution function of discharge: \f$ \(1 - a \cdot x^b\) \f$
     """
-    return 1 - a * x**b
+    return 1 - a * ratio**b
 
-def discharge_time_equation_Singh2014(tau, a, b, q_min, q_max, M):
+def discharge_time_equation_Singh2014(ratio, a, b, q_min, q_max, M):
     """
     Equation 23 of Singh et al. (2014).
+
+    @param ratio The ratio 't/T', with 't' the cumulative time for which
+    the discharge is less than the discharge corresponding to 't' in the
+    cumulative distribution function of the discharge over the period
+    considered and 'T' the period considered.
+    @param a Parameter 'a' of the equation.
+    @param b Parameter 'b' of the equation.
+    @param q_min The minimum daily discharge.
+    @param q_max The maximum daily discharge.
+    @param M Parameter 'M' of the equation.
+    @return The flow duration curve.
     """
     # Compute the discharge time points from the observed discharges
-    numerator = np.exp(-M) - (np.exp(-M) - np.exp(-M * q_min / q_max)) * a * tau ** b
+    numerator = np.exp(-M) - (np.exp(-M) - np.exp(-M * q_min / q_max)) * a * ratio ** b
     right_side = - np.log(numerator) / M
     q = q_max * right_side
 
     return q
 
-def func_Sigmoid_d(x, a, b, c, d):
+def func_Sigmoid_d(ratio, a, b, c, d):
     """
     Sigmoid version to replace equation 18b of Singh et al. (2014).
-    """
-    return d / (1 + np.exp(a * (x - b))) + c * x - d + 1
 
-def discharge_time_equation_Sigmoid_d(tau, a, b, c, d, q_min, q_max, M):
+    @param ratio The ratio 't/T', with 't' the cumulative time for which
+    the discharge is less than the discharge corresponding to 't' in the
+    cumulative distribution function of the discharge over the period
+    considered and 'T' the period considered.
+    @param a Parameter 'a' of the equation.
+    @param b Parameter 'b' of the equation.
+    @param c Parameter 'c' of the equation.
+    @param d Parameter 'd' of the equation.
+    @return The cumulative distribution function of discharge: \f$ \(1 - a \cdot x^b\) \f$
+    """
+    return d / (1 + np.exp(a * (ratio - b))) + c * ratio - d + 1
+
+def discharge_time_equation_Sigmoid_d(ratio, a, b, c, d, q_min, q_max, M):
     """
     Sigmoid version to replace equation 23 of Singh et al. (2014).
+
+    @param ratio The ratio 't/T', with 't' the cumulative time for which
+    the discharge is less than the discharge corresponding to 't' in the
+    cumulative distribution function of the discharge over the period
+    considered and 'T' the period considered.
+    @param a Parameter 'a' of the equation.
+    @param b Parameter 'b' of the equation.
+    @param c Parameter 'c' of the equation.
+    @param d Parameter 'd' of the equation.
+    @param q_min The minimum daily discharge.
+    @param q_max The maximum daily discharge.
+    @param M Parameter 'M' of the equation.
+    @return The flow duration curve.
     """
     # Compute the discharge time points from the observed discharges
-    numerator = np.exp(-M) - (np.exp(-M * q_min / q_max) - np.exp(-M)) * (d / (1 + np.exp(a * (tau - b))) - d / (1 + np.exp(-a * b)) + c * tau)
+    numerator = np.exp(-M) - (np.exp(-M * q_min / q_max) - np.exp(-M)) * (d / (1 + np.exp(a * (ratio - b))) - d / (1 + np.exp(-a * b)) + c * ratio)
     right_side = - np.log(numerator) / M
     q = q_max * right_side
 
     return q
 
-def func_Sigmoid(x, a, b, c):
+def func_Sigmoid(ratio, a, b, c):
     """
     Sigmoid version to replace equation 18b of Singh et al. (2014), with d = c + 1.
-    """
-    return (c + 1) / (1 + np.exp(a * (x - b))) + c * x - c
 
-def discharge_time_equation_Sigmoid(tau, a, b, c, q_min, q_max, M):
+    @param ratio The ratio 't/T', with 't' the cumulative time for which
+    the discharge is less than the discharge corresponding to 't' in the
+    cumulative distribution function of the discharge over the period
+    considered and 'T' the period considered.
+    @param a Parameter 'a' of the equation.
+    @param b Parameter 'b' of the equation.
+    @param c Parameter 'c' of the equation.
+    @return The cumulative distribution function of discharge: \f$ \(1 - a \cdot x^b\) \f$
+    """
+    return (c + 1) / (1 + np.exp(a * (ratio - b))) + c * ratio - c
+
+def discharge_time_equation_Sigmoid(ratio, a, b, c, q_min, q_max, M):
     """
     Sigmoid version to replace equation 23 of Singh et al. (2014), with d = c + 1.
+
+    @param ratio The ratio 't/T', with 't' the cumulative time for which
+    the discharge is less than the discharge corresponding to 't' in the
+    cumulative distribution function of the discharge over the period
+    considered and 'T' the period considered.
+    @param a Parameter 'a' of the equation.
+    @param b Parameter 'b' of the equation.
+    @param c Parameter 'c' of the equation.
+    @param q_min The minimum daily discharge.
+    @param q_max The maximum daily discharge.
+    @param M Parameter 'M' of the equation.
+    @return The flow duration curve.
     """
     # Compute the discharge time points from the observed discharges
-    numerator = np.exp(-M) - (np.exp(-M * q_min / q_max) - np.exp(-M)) * ((c + 1) / (1 + np.exp(a * (tau - b))) - (c + 1) / (1 + np.exp(-a * b)) + c * tau)
+    numerator = np.exp(-M) - (np.exp(-M * q_min / q_max) - np.exp(-M)) * ((c + 1) / (1 + np.exp(a * (ratio - b))) - (c + 1) / (1 + np.exp(-a * b)) + c * ratio)
     right_side = - np.log(numerator) / M
     q = q_max * right_side
 
     return q
 
-def fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge, function="Singh2014", nb=96):
+def func_Sigmoid_ext_variables(input, a1, b1, c1):  #, a2, a3, b2, b3, c2, c3):
+    """
+    Sigmoid version to replace equation 18b of Singh et al. (2014), with d = c + 1.
+    In this version, we define a, b and c as functions of other hydrological or meteorological variables.
+    """
+    x = input[0]
+    var1 = input[1]
+    var2 = input[2]
+    var3 = input[3]
+    a = a1 * var1 #+ a2 * var2 + a3 * var3
+    b = b1 * var1 #+ b2 * var2 + b3 * var3
+    c = c1 * var1 #+ c2 * var2 + c3 * var3
+    return (c + 1) / (1 + np.exp(a * (x - b))) + c * x - c
 
+def fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge, 
+                                               day_meteo, function="Singh2014", nb=96):
+    
     # Order observation points from higher to lowest
     # Compute tau
     df = observed_subdaily_discharge.sort_values(by='Discharge', ascending=False)
