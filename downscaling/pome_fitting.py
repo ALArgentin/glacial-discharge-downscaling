@@ -1,17 +1,18 @@
+from test.support import _1M
+
 import numpy as np
 from fit_metrics import compute_r2
 from scipy.optimize import curve_fit
-from test.support import _1M
 
 
 def func_Singh2014(x, a, b):
-    """!
+    r"""!
     Equation 18b of Singh et al. (2014).
 
     @param x The input variable for the equation.
     @param a Parameter 'a' of the equation.
     @param b Parameter 'b' of the equation.
-    @return The result of the equation: \(1 - a \cdot x^b\)
+    @return The result of the equation: \f$ \(1 - a \cdot x^b\) \f$
     """
     return 1 - a * x**b
 
