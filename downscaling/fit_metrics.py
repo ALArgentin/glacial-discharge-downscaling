@@ -52,11 +52,11 @@ def compute_reference_metric(all_bootstrapped_FDCs_dfs, observed_FDCs_df, metric
     evaluating the bootstrapped series using the provided metric and computing
     the mean of the results.
 
-    @param metric : str
+    @param metric (str)
         The abbreviation of the function as defined in HydroErr
         (https://hydroerr.readthedocs.io/en/stable/list_of_metrics.html)
         Examples: nse, kge_2012, ...
-    @param n_evals : int
+    @param n_evals (int)
         Number of evaluations to perform (default: 100).
 
     @return The mean value of n_evals realization of the selected metric.
@@ -78,7 +78,14 @@ def compute_reference_metric(all_bootstrapped_FDCs_dfs, observed_FDCs_df, metric
 
 def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metric):
     """
-    Compute the hydrological metric indicated as input on the two discharge datasets inputted.
+    Compute the hydrological metric indicated as input on the two discharge datasets
+    inputted.
+    
+    @param simulated_FDCs_df: The simulated flow duration curves.
+    @param cleaned_observed_FDCs_df: The observed flow duration curves, already preprocessed.
+    @param months: The months
+    @param metric: 
+    @return The value of the computed metric.
     """
     print(f"Compute {metric}...")
 
