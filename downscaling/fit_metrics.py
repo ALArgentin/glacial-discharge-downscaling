@@ -9,13 +9,11 @@ def mann_kendall_tests(meteo_df, file_paths):
     """
     Running a Mann-Kendall Trend test and a seasonal Mann-Kendall Trend on the
     calibrated parameters over several years.
-    
-    Parameters
-    ----------
+
     @param meteo_df: The daily meteorological dataset, which also contains the
-    calibrated downscaling parameters.
+        calibrated downscaling parameters.
     @param file_paths: Object containing all file paths, used to give the file
-    path and name of the results files.
+        path and name of the results files.
     """
 
     meteo_df.index = pd.to_datetime(meteo_df.index)
@@ -116,10 +114,10 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metric):
 def compute_r2(y_data, y_fit):
     """
     Computation of the coefficient of determination.
-    
+
     @param y_data: The first dataset.
     @param y_fit: The second dataset.
-    @return: the coefficient of determination.
+    @return r2: the coefficient of determination.
     """
     # residual sum of squares
     ss_res = np.sum((y_data - y_fit) ** 2)
