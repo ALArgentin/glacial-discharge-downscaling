@@ -5,7 +5,18 @@ import pymannkendall as mk
 from extract_hydrological_variables import select_months
 
 
-def mann_kendall_tests(meteo_df, results):
+def mann_kendall_tests(meteo_df, file_paths):
+    """
+    Running a Mann-Kendall Trend test and a seasonal Mann-Kendall Trend on the
+    calibrated parameters over several years.
+    
+    Parameters
+    ----------
+    @param meteo_df: The daily meteorological dataset, which also contains the
+    calibrated downscaling parameters.
+    @param file_paths: Object containing all file paths, used to give the file
+    path and name of the results files.
+    """
 
     meteo_df.index = pd.to_datetime(meteo_df.index)
     # Select the ones you want
@@ -13,7 +24,8 @@ def mann_kendall_tests(meteo_df, results):
     yearly_meteo_df = meteo_df.groupby(pd.Grouper(freq='Y')).mean()
 
     # perform Mann-Kendall Trend Test
-    with open(f'{results}Mann_Kendall_test_results.txt', 'w') as file:
+    with open(file_paths.mann_kendall_filename, 'w') as file:
+        file.write(f"Parameter, Trend, h, p, z, Tau, s, var_s, slope, intercept\n")
         trend, h, p, z, Tau, s, var_s, slope, intercept = mk.original_test(yearly_meteo_df['$a$'].values)
         file.write(f"a, {trend}, {h}, {p}, {z}, {Tau}, {s}, {var_s}, {slope}, {intercept}\n")
         trend, h, p, z, Tau, s, var_s, slope, intercept = mk.original_test(yearly_meteo_df['$b$'].values)
@@ -24,7 +36,8 @@ def mann_kendall_tests(meteo_df, results):
         file.write(f"M, {trend}, {h}, {p}, {z}, {Tau}, {s}, {var_s}, {slope}, {intercept}\n")
 
     # perform seasonal Mann-Kendall Trend Test
-    with open(f'{results}Seasonal_Mann_Kendall_test_results.txt', 'w') as file:
+    with open(file_paths.seasonal_mann_kendall_filename, 'w') as file:
+        file.write(f"Parameter, Trend, h, p, z, Tau, s, var_s, slope, intercept\n")
         trend, h, p, z, Tau, s, var_s, slope, intercept = mk.seasonal_test(meteo_df['$a$'].values, period=122)
         file.write(f"a, {trend}, {h}, {p}, {z}, {Tau}, {s}, {var_s}, {slope}, {intercept}\n")
         trend, h, p, z, Tau, s, var_s, slope, intercept = mk.seasonal_test(meteo_df['$b$'].values, period=122)
@@ -70,6 +83,9 @@ def compute_reference_metric(all_bootstrapped_FDCs_dfs, observed_FDCs_df, metric
     return ref_metric
 
 def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metric):
+    """
+    Compute the hydrological metric indicated as input on the two discharge datasets inputted.
+    """
     print(f"Compute {metric}...")
 
     # Formatting
@@ -98,7 +114,13 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metric):
 
 
 def compute_r2(y_data, y_fit):
-    # Computation of the coefficient of determination
+    """
+    Computation of the coefficient of determination.
+    
+    @param y_data: The first dataset.
+    @param y_fit: The second dataset.
+    @return: the coefficient of determination.
+    """
     # residual sum of squares
     ss_res = np.sum((y_data - y_fit) ** 2)
     # total sum of squares
