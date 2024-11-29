@@ -3,7 +3,52 @@ import numpy as np
 import pandas as pd
 
 
+def select_months_in_year(df, year, months=[6,7,8,9]):
+    """
+    Filters a dataframe to include only rows corresponding to a specific
+    year and a set of months.
+    
+    @param df (dataframe)
+        The input dataframe, assumed to have a datetime index.
+    @param year (int)
+        The year to filter the dataframe by.
+    @param months (list of int)
+        A list of integers representing the months to keep
+        (default is [6, 7, 8, 9]).
+    @return (dataframe) A dataframe containing data from the specified 
+        year and months.
+    """
+    df = df[df.index.year == year]
+    df = df[df.index.month.isin(months)]
+    return df
+
+def select_months(df, months):
+    """
+    Filters a dataframe to include only rows corresponding to a specific
+    set of months.
+    
+    @param df (dataframe)
+        The input dataframe, assumed to have a datetime index.
+    @param months (list of int)
+        A list of integers representing the months to keep
+        (default is [6, 7, 8, 9]).
+    @return (dataframe) A dataframe containing data from the specified 
+        months.
+    """
+    df = df[df.index.month.isin(months)]
+    return df
+
 def extract_snow_water_eq(results_file, component):
+    """
+    Extract the snow water equivalent of distributed labels of Hydrobricks.
+    
+    @param results_file (str)
+        The netcdf results file of Hydrobricks.
+    @param component (str)
+        The name of the distributed label component to retrieve.
+        https://hydrobricks.readthedocs.io/en/latest/doc/basics.html#adding-data-related-parameters
+    @return (dataframe) The requested component.
+    """
 
     # Load the netcdf file
     results = hb.Results(results_file)
@@ -17,6 +62,16 @@ def extract_snow_water_eq(results_file, component):
     return component_df
 
 def extract_snow_water_eq_agg(results_file, component):
+    """
+    Extract the snow water equivalent of aggregated labels of Hydrobricks.
+    
+    @param results_file (str)
+        The netcdf results file of Hydrobricks.
+    @param component (str)
+        The name of the aggregated label component to retrieve.
+        https://hydrobricks.readthedocs.io/en/latest/doc/basics.html#adding-data-related-parameters
+    @return (dataframe) The requested component.
+    """
 
     # Load the netcdf file
     results = hb.Results(results_file)
@@ -29,6 +84,15 @@ def extract_snow_water_eq_agg(results_file, component):
     return component_df
 
 def extract_hydro_unit_characteristics(results_file):
+    """
+    Extract the characteristics of the hydrological units of the
+    simulation run with Hydrobricks.
+    
+    @param results_file (str)
+        The netcdf results file of Hydrobricks.
+    @return (dataframe, dataframe) The ground areas per hydrological unit, 
+        and the glaciated areas per hydrological unit.
+    """
 
     # Load the netcdf file
     results = hb.Results(results_file)
@@ -49,11 +113,6 @@ def extract_hydro_unit_characteristics(results_file):
     hy_ground_areas = hy_ground_fraction.mul(hy_areas.values, axis=1)
     hy_glacier_fraction = lo_areas.xs(1, level=0)
     hy_glacier_areas = hy_glacier_fraction.mul(hy_areas.values, axis=1)
-
-    # Compute area, glaciated area, and glaciated fraction of the whole catchment
-    catch_area = np.sum(hy_areas, axis=1)[0]
-    catch_glacier_areas = np.sum(hy_glacier_areas, axis=1)
-    catch_glacier_fraction = catch_glacier_areas / catch_area
 
     return hy_ground_areas, hy_glacier_areas
 
@@ -124,15 +183,6 @@ def extract_meteorological_data(forcing_file, hydro_units_file, with_debris, mel
 
     return hydro_units, precipitations, temperatures, radiations, pet
 
-def select_months_in_year(df, year, months=[6,7,8,9]):
-    df = df[df.index.year == year]
-    df = df[df.index.month.isin(months)]
-    return df
-
-def select_months(df, months):
-    df = df[df.index.month.isin(months)]
-    return df
-
 def get_meteorological_hydrological_data(forcing_file, results_file, hydro_units_file, months, melt_model, with_debris):
 
     hydro_units, precipitations, temperatures, radiations, pet = extract_meteorological_data(forcing_file, hydro_units_file,
@@ -162,7 +212,6 @@ def get_meteorological_hydrological_data(forcing_file, results_file, hydro_units
     temper_m = temperatures * areas
     temper_m = np.sum(temper_m, axis=1) / total_area
     temper_m = temper_m.values
-    print(radiations)
    # if not np.isnan(radiations):
     radiat_m = radiations * areas
     radiat_m = np.sum(radiat_m, axis=1) / total_area
@@ -196,7 +245,7 @@ def get_meteorological_hydrological_data(forcing_file, results_file, hydro_units
     #meteo_df["glacier_area_icemelt_storage"] = comp7_m
     #meteo_df["glacier_area_icemelt_storage outflow"] = comp8_m
     meteo_df = meteo_df.set_index(precipitations.index)
-    meteo_df = select_months(meteo_df, months)
+    #meteo_df = select_months(meteo_df, months)
     #melt_m = melt_m.loc[pd.to_datetime(date1):pd.to_datetime(date2)]
 
     return meteo_df
