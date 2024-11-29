@@ -8,9 +8,87 @@ from extract_hydrological_variables import get_meteorological_hydrological_data
 from preprocessing import (bootstrapping_observed_FDCs,
                            convert_to_hydrobricks_units)
 
+class FilePaths:
+    def __init__(self, path, study_area, catchment, months, function):
+        self.path = path
+        self.results = f"{path}Outputs/{study_area}/{catchment}/"
+        self.months_str = '_'.join(str(m) for m in months)
+        
+        self.subdaily_discharge = None
+        self.hydro_units_file = None
+        self.forcing_file = None
+        self.results_file = None
+        self.dataframe_filename = None
+        
+        self.mann_kendall_filename = None
+        self.seasonal_mann_kendall_filename = None
+        
+        self._set_input_file_paths(catchment, months, function)
+        self._set_output_file_paths(months, function)
+        
+    def _set_input_file_paths(self, catchment, months, function):
+        self.subdaily_discharge = f"{self.path}Outputs/ObservedDischarges/Arolla_15min_discharge_all_corrected_{catchment}.csv"
+        self.hydro_units_file = f"{self.results}hydro_units.csv"
+        self.forcing_file = f"{self.results}/forcing.nc"
+        self.results_file = f"{self.results}results.nc"
+        self.dataframe_filename = f"{self.results}meteo_df_{function}_{self.months_str}.csv"
+        
+    def _set_output_file_paths(self, months, function):
+        """
+        @brief Sets the file paths for output files used in the analysis.
+    
+        This method generates and assigns file paths for various output files 
+        based on the input `function` and the string representation of `months`.
+    
+        @param months (list of int)
+            A list of integers representing the months used in the analysis.
+        @param function (str)
+            The function to use for the downscaling, between:
+            - "Singh2014": the original function
+            - "Sigmoid_d": the glacial function
+            - "Sigmoid": the simplified glacial function
+
+        The generated filenames are assigned to attributes of the class:
+        - @b mann_kendall_filename: Results of the Mann-Kendall test.
+        - @b seasonal_mann_kendall_filename: Results of the Seasonal Mann-Kendall test.
+        - Calibration step 1:
+            - @b x_data1_filename: CSV file containing observed X data.
+            - @b y_data1_filename: CSV file containing observed Y data.
+            - @b x_fit1_filename: CSV file containing simulated X data.
+            - @b y_fit1_filename: CSV file containing simulated Y data.
+            - @b r21_filename: CSV file containing the correlation coefficient (r²) for step 1.
+        - Calibration step 2:
+            - @b x_data2_filename: CSV file containing observed X data for step 2.
+            - @b y_data2_filename: CSV file containing observed Y data for step 2.
+            - @b t_fit2_filename: CSV file containing simulated time data for step 2.
+            - @b y_fit2_filename: CSV file containing simulated Y data for step 2.
+            - @b r22_filename: CSV file containing the correlation coefficient (r²) for step 2.
+
+        """
+        
+        
+        self.mann_kendall_filename = f'{self.results}Mann_Kendall_test_results.txt'
+        self.seasonal_mann_kendall_filename = f'{self.results}Seasonal_Mann_Kendall_test_results.txt'
+        
+        # First calibration step files: observed (x_data1, y_data1), 
+        # simulated (x_fit1, y_fit1) and correlation coefficient (r21).
+        self.x_data1_filename = f"{self.results}x_data1_df_{function}_{self.months_str}.csv"
+        self.y_data1_filename = f"{self.results}y_data1_df_{function}_{self.months_str}.csv"
+        self.x_fit1_filename = f"{self.results}x_fit1_df_{function}_{self.months_str}.csv"
+        self.y_fit1_filename = f"{self.results}y_fit1_df_{function}_{self.months_str}.csv"
+        self.r21_filename = f"{self.results}r21_df_{function}_{self.months_str}.csv"
+        
+        # Second calibration step files: observed (x_data2, y_data2), 
+        # simulated (x_fit2, y_fit2) and correlation coefficient (r22).
+        self.x_data2_filename = f"{self.results}x_data2_df_{function}_{self.months_str}.csv"
+        self.y_data2_filename = f"{self.results}y_data2_df_{function}_{self.months_str}.csv"
+        self.t_fit2_filename = f"{self.results}t_fit2_df_{function}_{self.months_str}.csv"
+        self.y_fit2_filename = f"{self.results}y_fit2_df_{function}_{self.months_str}.csv"
+        self.r22_filename = f"{self.results}r22_df_{function}_{self.months_str}.csv"   
+
 ##################################### Arolla ##############################################################
 catchments = ['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'] # Ordered by area.
-function = "Sigmoid" #"Singh2014" "Sigmoid" "Sigmoid_d"
+function = "Sigmoid" #"Singh2014" "Sigmoid" "Sigmoid_d" "Sigmoid_ext_var"
 months = [6, 7, 8, 9]
 calibrate = True
 
@@ -20,22 +98,17 @@ path = "/home/anne-laure/Documents/Datasets/"
 if calibrate:
     for catchment in catchments:
         print(f"Now doing catchment {catchment}.")
-
-        ### Paths
-        results = f"{path}Outputs/Arolla/{catchment}/"
-        subdaily_discharge = f"{path}Outputs/ObservedDischarges/Arolla_15min_discharge_all_corrected_{catchment}.csv"
-        hydro_units_file = f"{results}hydro_units.csv"
-        forcing_file = f"{results}/forcing.nc"
-        results_file = f"{results}results.nc"
-        months_str = '_'.join(str(m) for m in months)
-        dataframe_filename = f"{results}meteo_df_{function}_{months_str}.csv"
+        
+        fp = FilePaths(path, "Arolla", catchment, months, function)
+        print(fp.dataframe_filename)
 
         ###########################################################################################################
-        meteo_df = get_meteorological_hydrological_data(forcing_file, results_file, hydro_units_file, months,
+        meteo_df = get_meteorological_hydrological_data(fp.forcing_file, fp.results_file, fp.hydro_units_file, months,
                                                         melt_model='degree_day', with_debris=False)
-        dc.calibration_workflow(meteo_df, subdaily_discharge, function, dataframe_filename, results, months, months_str)
+        dc.calibration_workflow(meteo_df, fp.subdaily_discharge, function, fp.dataframe_filename, fp, months)
+        print(bipü)
 
-# List of catchments and the metric names
+# List of catchment and metric names
 metrics = ["catchments", "ref_nses", "ref_kges", "odd_nses", "odd_kges", "wodd_nses", "wodd_kges", "mwodd_nses", "mwodd_kges", "sdd_nses", "sdd_kges"]
 metric_dict = {metric: [] for metric in metrics}
 
@@ -48,9 +121,11 @@ for catchment in catchments:
 
     ### Paths
     results = f"{path}Outputs/Arolla/{catchment}/"
+    months_str = '_'.join(str(m) for m in months)
+    
+    
     subdaily_discharge = f"{path}Outputs/ObservedDischarges/Arolla_15min_discharge_all_corrected_{catchment}.csv"
     observed_daily_discharge = f"{path}Outputs/ObservedDischarges/Arolla_daily_mean_discharge_{catchment}.csv"
-    months_str = '_'.join(str(m) for m in months)
     dataframe_filename = f"{results}meteo_df_{function}_{months_str}.csv"
     functions_filename = f"{results}pdf_functions_{function}_{months_str}.csv"
     linear_regr_filename = f"{results}linear_regr_{months_str}.csv"
@@ -59,9 +134,10 @@ for catchment in catchments:
     observed_FDCs_output_file = f"{results}Arolla_15min_FDCs_{catchment}_from_observed_15min_discharge.csv"
     weather_observed_FDCs_output_file = f"{results}Arolla_15min_FDCs_{catchment}_from_observed_daily_discharge_plus_weather.csv"
     multi_weather_observed_FDCs_output_file = f"{results}Arolla_15min_FDCs_{catchment}_from_observed_daily_discharge_plus_weather_plus_multiregr.csv"
+    
+    # Convert the simulated discharge of Hydrobricks from [mm/day] to [m3/s].
     simulated_daily_discharge = f"{path}Outputs/Arolla/{catchment}/best_fit_simulated_discharge_SCEUA_melt:temperature_index_nse.csv"
     simulated_daily_discharge_m3s = f"{path}Outputs/Arolla/{catchment}/best_fit_simulated_discharge_SCEUA_melt:temperature_index_nse_m3s.csv"
-
     convert_to_hydrobricks_units(simulated_daily_discharge, watershed_path, area_txt,
                                  simulated_daily_discharge_m3s, opposite_conversion=True,
                                  catchment=catchment)
