@@ -52,18 +52,14 @@ def compute_reference_metric(all_bootstrapped_FDCs_dfs, observed_FDCs_df, metric
     evaluating the bootstrapped series using the provided metric and computing
     the mean of the results.
 
-    Parameters
-    ----------
-    metric : str
+    @param metric : str
         The abbreviation of the function as defined in HydroErr
         (https://hydroerr.readthedocs.io/en/stable/list_of_metrics.html)
         Examples: nse, kge_2012, ...
-    n_evals : int
+    @param n_evals : int
         Number of evaluations to perform (default: 100).
 
-    Returns
-    -------
-    The mean value of n_evals realization of the selected metric.
+    @return The mean value of n_evals realization of the selected metric.
     """
     print(f"Compute reference {metric}...")
     n_evals = len(all_bootstrapped_FDCs_dfs.columns)
@@ -117,7 +113,7 @@ def compute_r2(y_data, y_fit):
 
     @param y_data: The first dataset.
     @param y_fit: The second dataset.
-    @return r2: the coefficient of determination.
+    @return The coefficient of determination.
     """
     # residual sum of squares
     ss_res = np.sum((y_data - y_fit) ** 2)
