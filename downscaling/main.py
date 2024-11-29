@@ -21,29 +21,34 @@ class FilePaths:
         self.results_file = None
         self.dataframe_filename = None
 
+        ## Path to the Mann-Kendall test results file.
         self.mann_kendall_filename = None
+        ## Path to the Seasonal Mann-Kendall test results file.
         self.seasonal_mann_kendall_filename = None
         
         ## @name First Calibration Step Files
         #  Group of attributes for first calibration step files.
         #  @{
-        # First calibration step files: observed (x_data1, y_data1),
-        # simulated (x_fit1, y_fit1) and correlation coefficient (r21).
-        self.x_data1_filename = None ## Path to the observed X data file (step 1).
-        ## Path to the observed Y data file (step 1).
+        # Observed dataset (x_data1, y_data1), simulated dataset 
+        # (x_fit1, y_fit1) and correlation coefficient (r21).
+        self.x_data1_filename = None
         self.y_data1_filename = None
         self.x_fit1_filename = None
         self.y_fit1_filename = None
         self.r21_filename = None
         # @}
 
-        # Second calibration step files: observed (x_data2, y_data2),
-        # simulated (x_fit2, y_fit2) and correlation coefficient (r22).
+        ## @name Second Calibration Step Files
+        #  Group of attributes for second calibration step files.
+        #  @{
+        # Observed dataset (x_data2, y_data2), simulated dataset 
+        # (x_fit2, y_fit2) and correlation coefficient (r22).
         self.x_data2_filename = None
         self.y_data2_filename = None
         self.t_fit2_filename = None
         self.y_fit2_filename = None
         self.r22_filename = None
+        # @}
 
         self._set_input_file_paths(catchment, months, function)
         self._set_output_file_paths(months, function)
@@ -69,23 +74,6 @@ class FilePaths:
             - "Singh2014": the original function
             - "Sigmoid_d": the glacial function
             - "Sigmoid": the simplified glacial function
-
-        The generated filenames are assigned to attributes of the class:
-        - @b mann_kendall_filename: Results of the Mann-Kendall test.
-        - @b seasonal_mann_kendall_filename: Results of the Seasonal Mann-Kendall test.
-        - Calibration step 1:
-            - @b x_data1_filename: CSV file containing observed X data.
-            - @b y_data1_filename: CSV file containing observed Y data.
-            - @b x_fit1_filename: CSV file containing simulated X data.
-            - @b y_fit1_filename: CSV file containing simulated Y data.
-            - @b r21_filename: CSV file containing the correlation coefficient (r²) for step 1.
-        - Calibration step 2:
-            - @b x_data2_filename: CSV file containing observed X data for step 2.
-            - @b y_data2_filename: CSV file containing observed Y data for step 2.
-            - @b t_fit2_filename: CSV file containing simulated time data for step 2.
-            - @b y_fit2_filename: CSV file containing simulated Y data for step 2.
-            - @b r22_filename: CSV file containing the correlation coefficient (r²) for step 2.
-
         """
 
 
