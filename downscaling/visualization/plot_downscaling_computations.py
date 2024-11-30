@@ -1259,7 +1259,6 @@ def plot_downscaling_improvement(observed_FDCs, simulated_FDCs_from_observed_mea
     axes[4].xaxis.set_major_locator(dates.DayLocator())
     axes[4].xaxis.set_major_formatter(dates.DateFormatter('%d/%m'))
     plt.savefig(filename, format="pdf", bbox_inches='tight', dpi=100)
-    print(jü)
 
 def Mutzner2015_plot(discharge_15min, months, filename):
     # Observed discharge
@@ -1379,10 +1378,9 @@ figures = f"{path}OutputFigures/"
 function = "Sigmoid"
 
 catchments = ['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'] # Ordered by area.
-plot_yearly_discharges('Arolla_15min_discharge_all_corrected_', catchments, path, f'{figures}yearly_discharges')
+plot_yearly_discharges('Arolla_15min_discharge_all_corrected_', catchments, path, f'{figures}Arolla_yearly_discharges')
 plot_yearly_discharges('Ferpecle_discharge_all_corrected_', ['BR', 'BL', 'RR', 'MA', 'RO'], path, f'{figures}Ferpecle_yearly_discharges')
 plot_yearly_discharges('Mattertal_discharge_all_corrected_', ['AR', 'FU', 'TR'], path, f'{figures}Mattertal_yearly_discharges')
-print(bjvkö)
 
 plot_comparison_of_catchments_distributions(catchments, path, function, months_str, f'{figures}comparison_histograms_{function}_{months_str}')
 plot_comparison_of_catchments_distributions_depending_on_weather(catchments, path, function, months_str, f'{figures}comparison_KDE_weather_{function}_{months_str}')
@@ -1431,7 +1429,6 @@ for function in ["Sigmoid"]:
     meteo_df.drop(meteo_df[meteo_df["$a$"] < -50].index, inplace=True)
     meteo_df.drop(meteo_df[meteo_df["$a$"] > 150].index, inplace=True)
     meteo_df.drop(meteo_df[meteo_df["$b$"] < -10].index, inplace=True)
-
 
 
 variables = {"$a$": np.array([5, 10, 25, 50, 75]), "$b$": np.array([0, 0.4, 0.8, 1.2, 1.8]),

@@ -15,7 +15,7 @@ def simulate_a_flow_duration_curve(params, q_min, q_max, M, day_meteo, function=
     """
     Simulate a flow duration curve based on the given parameter sets
     and minimum and maximum discharges.
-    
+
     @param params (list?)
         The set of parameters determined in the first calibration step.
     @param q_min (?)
@@ -32,7 +32,7 @@ def simulate_a_flow_duration_curve(params, q_min, q_max, M, day_meteo, function=
         - "Singh2014": the original function
         - "Sigmoid_d": the glacial function
         - "Sigmoid": the simplified glacial function
-    
+
     @return y_fit (?) Return the simulated discharge.
     """
     # Extract the values of the params
@@ -67,16 +67,16 @@ def simulate_a_flow_duration_curve(params, q_min, q_max, M, day_meteo, function=
     # Return the simulated discharge
     return y_fit
 
-def calibration_workflow(meteo_df, filename, function, dataframe_filename, 
+def calibration_workflow(meteo_df, filename, function, dataframe_filename,
                          file_paths, months):
     """
     Calibration workflow.
-    
+
     @param meteo_df (dataframe)
         The daily meteorological dataset, which also contains the
         calibrated downscaling parameters.
     @param filename (?)
-    
+
     @param function (str)
         The function to use for the downscaling, between:
         - "Singh2014": the original function
@@ -129,14 +129,14 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename,
     df.rename(columns={df.columns[1]: 'Discharge'}, inplace=True)
     # Change the index format
     df.index = pd.to_datetime(df.iloc[:,0].values, format='%Y-%m-%d')
-        
+
     meteo_df_str_index = meteo_df.index.strftime('%Y-%m-%d')
-    
+
     daily_df = df.groupby(pd.Grouper(freq='D')).mean()
     daily_summer_df = fc.select_months(daily_df, months)
 
     start_t = datetime.now()
-    
+
     time_df = df
     if function == "Sigmoid_ext_var":
         time_df = meteo_df
@@ -147,7 +147,7 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename,
             print(f"Processing year {day}: {(datetime.now() - start_t).seconds} s spent")
         observed_subdaily_discharge = retrieve_subdaily_discharge(df, day=day)
         day_meteo = meteo_df[meteo_df_str_index == day]
-        
+
         # CAREFUL, in this function I switched X_data and y_data in the sigmoid functions.... Consequently also switched for the rest.
         params, cov, x_data1, y_data1, x_fit1, y_fit1, r21 = fit.fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge, day_meteo, function=function)
         x_data1_df.loc[day] = x_data1
@@ -213,7 +213,7 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename,
 
     meteo_df = meteo_df.reindex(daily_summer_df.index, fill_value=np.nan, method='nearest', tolerance='2min')
     # WORKS HERE
-    
+
     data_to_assign = {
     "$a$": a_array,
     "$b$": b_array,
@@ -234,7 +234,7 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename,
             "$b1$": b1_array,
             "$c1$": c1_array
         })
-    
+
     #meteo_df = meteo_df.reindex(time_df.index)
     for key, value in data_to_assign.items():
         meteo_df.loc[:, key] = np.nan
@@ -242,7 +242,7 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename,
         #print(bvuipö)
         #meteo_df.loc[time_df.index, key] = value
     #print(ioäbä)
-    
+
     #meteo_df["Day of the year"] = daily_summer_df.index.dayofyear
 
  #   meteo_df.loc[time_df.index, "$a$"] = a_array
@@ -285,17 +285,70 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename,
 
 
 def apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function,
-                                         daily_discharge, qmin_regr, qmax_regr,
-                                         FDC_output_file, path, subdaily_nb,
-                                         modeled=False, criteria=None):
+                                         qmin_regr, qmax_regr, FDC_output_file, 
+                                         file_paths, subdaily_nb,
+                                         modeled=False, criteria=None, debug=False):
+    """
+    Applies downscaling to daily discharge data to generate sub-daily discharge 
+    flow durations.
+
+    This function takes daily discharge data and applies statistical downscaling 
+    techniques based on regression models, distribution fitting, and specified 
+    criteria to compute sub-daily discharge intervals.
+
+    @param meteo_df (pandas.DataFrame)
+        Meteorological data containing relevant predictors (e.g., temperature, 
+        precipitation) for criteria-based downscaling.
+    @param months (list of int)
+        List of months to include in the analysis (e.g., [6, 7, 8, 9] for summer).
+    @param kde_dict (dict)
+        Dictionary containing kernel density estimation (KDE) distributions for 
+        downscaling parameters (e.g., `$a$`, `$b$`, `$c$`, `$M$`).
+    @param function (str)
+        Discharge model to use for curve fitting. Options: "Singh2014", 
+        "Sigmoid_d", "Sigmoid".
+    @param qmin_regr (sklearn model)
+        Regression model for estimating the minimum daily discharge.
+    @param qmax_regr (sklearn model)
+        Regression model for estimating the maximum daily discharge.
+    @param FDC_output_file (str)
+        Path to the output CSV file where the generated flow duration curves 
+        (FDCs) will be saved.
+    @param file_paths (FilePaths)
+        Object containing all file paths, used to give the file path and name for
+        saving intermediate distribution files (e.g., `$a$`, `$b$`, `$c$`, `$M$`).
+    @param subdaily_nb (int)
+        Number of sub-daily intervals per day (e.g., 96 for 15-minute intervals).
+    @param modeled (bool, optional)
+        Whether the input discharge data is modeled or observed. Default is False.
+    @param criteria (list of str, optional)
+        List of additional meteorological predictors to include in the downscaling 
+        process. Default is None.
+    @param debug (bool, optional)
+        If True, enables additional assertions and debugging outputs. Default 
+        is False.
+
+    @return (pandas.DataFrame)
+        A DataFrame containing the downscaled sub-daily discharge data with 
+        15-minute intervals.
+
+    Notes:
+    -----
+    - The function supports multiple discharge fitting models and includes an 
+      option for weather-state-specific downscaling.
+    - Missing discharge or meteorological data is handled by imputing NaNs into 
+      the generated distributions.
+    - Distributions of downscaling parameters are saved as CSV files in the 
+      specified path for debugging or further analysis.
+    """
     print("Starting the downscaling of the discharge.")
 
     # Open the discharge dataset and get all mean daily discharge data
     if modeled:
-        df = pd.read_csv(daily_discharge, header=0, na_values='', usecols=[0, 1],
+        df = pd.read_csv(fp.simulated_daily_discharge_m3s, header=0, na_values='', usecols=[0, 1],
                          parse_dates=['Date'], date_format='%d/%m/%Y', index_col=0)
     else:
-        df = pd.read_csv(daily_discharge, header=0, na_values='', usecols=[0, 1],
+        df = pd.read_csv(fp.observed_daily_discharge, header=0, na_values='', usecols=[0, 1],
                          parse_dates=['Date'], date_format='%d/%m/%Y', index_col=0)
     df.rename(columns={df.columns[0]: 'Discharge'}, inplace=True)
     df = fc.select_months(df, months)
@@ -384,16 +437,17 @@ def apply_downscaling_to_daily_discharge(meteo_df, months, kde_dict, function,
     FDCs_df = pd.DataFrame({'Date': FDCs_time, 'Discharge': all_y_fits})
     FDCs_df = FDCs_df.set_index('Date')
 
-#    # Asserts (working but super long)
-#    if months == [6, 7, 8, 9]:
-#        years = FDCs_df.index.year.unique()
-#        for y in years:
-#            assert len(FDCs_df.loc[FDCs_df.index.strftime('%Y') == str(y)]) == 122 * 96
+    if debug:
+        # Asserts (working but super long)
+        if months == [6, 7, 8, 9]:
+            years = FDCs_df.index.year.unique()
+            for y in years:
+                assert len(FDCs_df.loc[FDCs_df.index.strftime('%Y') == str(y)]) == 122 * 96
 
-    pd.DataFrame(a_distrib).to_csv(path + "a_distrib.csv")
-    pd.DataFrame(b_distrib).to_csv(path + "b_distrib.csv")
-    pd.DataFrame(c_distrib).to_csv(path + "c_distrib.csv")
-    pd.DataFrame(M_distrib).to_csv(path + "M_distrib.csv")
+    pd.DataFrame(a_distrib).to_csv(fp.a_distrib_filename)
+    pd.DataFrame(b_distrib).to_csv(fp.b_distrib_filename)
+    pd.DataFrame(c_distrib).to_csv(fp.c_distrib_filename)
+    pd.DataFrame(M_distrib).to_csv(fp.M_distrib_filename)
 
     FDCs_df.to_csv(FDC_output_file)
 

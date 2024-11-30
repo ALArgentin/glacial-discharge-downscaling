@@ -85,7 +85,7 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metric):
     """
     Compute the hydrological metric indicated as input on the two discharge datasets
     inputted.
-    
+
     @param simulated_FDCs_df (dataframe)
         The simulated flow duration curves.
     @param cleaned_observed_FDCs_df (dataframe)
@@ -96,7 +96,7 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metric):
         The abbreviation of the function as defined in HydroErr
         (https://hydroerr.readthedocs.io/en/stable/list_of_metrics.html)
         Examples: nse, kge_2012, ...
-        
+
     @return (float) The value of the computed metric.
     """
     print(f"Compute {metric}...")

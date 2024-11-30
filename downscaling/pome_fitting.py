@@ -15,7 +15,7 @@ def func_Singh2014(ratio, a, b):
         considered and 'T' the period considered.
     @param a Parameter 'a' of the equation.
     @param b Parameter 'b' of the equation.
-    
+
     @return The cumulative distribution function of discharge: \f$ \(1 - a \cdot x^b\) \f$
     """
     return 1 - a * ratio**b
@@ -33,7 +33,7 @@ def discharge_time_equation_Singh2014(ratio, a, b, q_min, q_max, M):
     @param q_min The minimum daily discharge.
     @param q_max The maximum daily discharge.
     @param M Parameter 'M' of the equation.
-    
+
     @return The flow duration curve.
     """
     numerator = np.exp(-M) - (np.exp(-M) - np.exp(-M * q_min / q_max)) * a * ratio ** b
@@ -54,8 +54,8 @@ def func_Sigmoid_d(ratio, a, b, c, d):
     @param b Parameter 'b' of the equation.
     @param c Parameter 'c' of the equation.
     @param d Parameter 'd' of the equation.
-    
-    @return The cumulative distribution function of discharge: \f$ \(1 - a \cdot x^b\) \f$
+
+    @return The cumulative distribution function of discharge: \f$ \\(1 - a \\cdot x^b\\) \f$
     """
     return d / (1 + np.exp(a * (ratio - b))) + c * ratio - d + 1
 
@@ -74,7 +74,7 @@ def discharge_time_equation_Sigmoid_d(ratio, a, b, c, d, q_min, q_max, M):
     @param q_min The minimum daily discharge.
     @param q_max The maximum daily discharge.
     @param M Parameter 'M' of the equation.
-    
+
     @return The flow duration curve.
     """
     numerator = np.exp(-M) - (np.exp(-M * q_min / q_max) - np.exp(-M)) * (d / (1 + np.exp(a * (ratio - b))) - d / (1 + np.exp(-a * b)) + c * ratio)
@@ -94,8 +94,8 @@ def func_Sigmoid(ratio, a, b, c):
     @param a Parameter 'a' of the equation.
     @param b Parameter 'b' of the equation.
     @param c Parameter 'c' of the equation.
-    
-    @return The cumulative distribution function of discharge: \f$ \(1 - a \cdot x^b\) \f$
+
+    @return The cumulative distribution function of discharge: \f$ \\(1 - a \\cdot x^b\\) \f$
     """
     return (c + 1) / (1 + np.exp(a * (ratio - b))) + c * ratio - c
 
@@ -113,7 +113,7 @@ def discharge_time_equation_Sigmoid(ratio, a, b, c, q_min, q_max, M):
     @param q_min The minimum daily discharge.
     @param q_max The maximum daily discharge.
     @param M Parameter 'M' of the equation.
-    
+
     @return The flow duration curve.
     """
     numerator = np.exp(-M) - (np.exp(-M * q_min / q_max) - np.exp(-M)) * ((c + 1) / (1 + np.exp(a * (ratio - b))) - (c + 1) / (1 + np.exp(-a * b)) + c * ratio)
@@ -136,11 +136,11 @@ def func_Sigmoid_ext_variables(input, a1, b1, c1):  #, a2, a3, b2, b3, c2, c3):
     c = c1 * var1 #+ c2 * var2 + c3 * var3
     return (c + 1) / (1 + np.exp(a * (x - b))) + c * x - c
 
-def fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge, 
+def fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge,
                                                day_meteo, function="Singh2014", nb=96):
     """
     First step of the calibration of the downscaling procedure.
-    
+
     @param observed_subdaily_discharge The observed subdaily discharge on
         which we fit the first set of parameters.
     @param day_meteo The daily meteorological dataset. Only used for the
@@ -149,12 +149,12 @@ def fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge,
         - "Singh2014": the original function
         - "Sigmoid_d": the glacial function
         - "Sigmoid": the simplified glacial function
-    @param nb The resolution of the downscaled discharge (number of points 
+    @param nb The resolution of the downscaled discharge (number of points
         per day).
-    
+
     @return params, covariance, x_data, y_data, x_fit, y_fit, r2.
     """
-    
+
     # Order observation points from higher to lowest
     # Compute tau
     df = observed_subdaily_discharge.sort_values(by='Discharge', ascending=False)
@@ -209,7 +209,7 @@ def fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge,
         else:
             try:
                 arr = np.vstack((y_data, var1_data, var2_data, var3_data))
-                params, covariance = curve_fit(func_Sigmoid_ext_variables, arr, x_data, 
+                params, covariance = curve_fit(func_Sigmoid_ext_variables, arr, x_data,
                                                p0=[-0.4, -0.4, -0.4]#16, 0.01, 1, 0.01, 0.01, 1, 0.01, 0.01]
                                                , maxfev=5000)
             except RuntimeError as e:
@@ -249,7 +249,7 @@ def fit_m_to_flow_duration_curve(observed_subdaily_discharge, params, q_min, q_m
                                  day_meteo, function="Singh2014", nb=96):
     """
     Second step of the calibration of the downscaling procedure.
-    
+
     @param observed_subdaily_discharge The observed subdaily discharge on
         which we fit the first set of parameters.
     @param params The ...
@@ -261,9 +261,9 @@ def fit_m_to_flow_duration_curve(observed_subdaily_discharge, params, q_min, q_m
         - "Singh2014": the original function
         - "Sigmoid_d": the glacial function
         - "Sigmoid": the simplified glacial function
-    @param nb The resolution of the downscaled discharge (number of points 
+    @param nb The resolution of the downscaled discharge (number of points
         per day).
-    
+
     @return M, variance, x_data, y_data, t_fit, y_fit, r2.
     """
     # Extract the values of the params

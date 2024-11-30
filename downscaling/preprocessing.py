@@ -8,14 +8,14 @@ def convert_to_hydrobricks_units(daily_mean_discharges, watershed_path, area_txt
     """
     Converts discharge units between hydrological and Hydrobricks formats.
 
-    This function handles the conversion of daily mean discharge data from 
-    one format to another, suitable for Hydrobricks usage. It either converts 
-    discharges from volumetric flow rates (m³/s) to depth-based units (mm/d) 
-    or performs the reverse operation, depending on the `opposite_conversion` 
+    This function handles the conversion of daily mean discharge data from
+    one format to another, suitable for Hydrobricks usage. It either converts
+    discharges from volumetric flow rates (m³/s) to depth-based units (mm/d)
+    or performs the reverse operation, depending on the `opposite_conversion`
     flag.
 
     @param daily_mean_discharges (str)
-        Path to the CSV file containing daily mean discharges. Must include 
+        Path to the CSV file containing daily mean discharges. Must include
         a 'Date' column and discharge data columns.
     @param watershed_path (str)
         Directory path containing watershed area data files.
@@ -26,18 +26,18 @@ def convert_to_hydrobricks_units(daily_mean_discharges, watershed_path, area_txt
     @param opposite_conversion (bool, optional)
         If `True`, performs the conversion from mm/d to m³/s. Defaults to `False`.
     @param catchment (str, optional)
-        The specific catchment key for processing, used in file naming. 
+        The specific catchment key for processing, used in file naming.
         Required when `opposite_conversion` is `True`.
 
     @return (None)
-        Writes the converted discharge data to the specified Hydrobricks 
+        Writes the converted discharge data to the specified Hydrobricks
         output files.
 
     Notes:
     -----
-    - For `opposite_conversion=True`, the function assumes a fixed date 
+    - For `opposite_conversion=True`, the function assumes a fixed date
       range from '2010-01-01' to '2014-12-31'.
-    - Watershed area values are read from text files corresponding to 
+    - Watershed area values are read from text files corresponding to
       each catchment or discharge key.
     - The conversion between units considers the following factors:
         - 1 m³/s = 86400 mm/d over the watershed area.
@@ -85,19 +85,19 @@ def retrieve_subdaily_discharge(df, day):
     """
     Retrieves sub-daily discharge data for a specific day from a dataframe.
 
-    This function filters the input dataframe to include only rows corresponding 
-    to the specified day, based on the `df_str_index`. It also removes the first 
+    This function filters the input dataframe to include only rows corresponding
+    to the specified day, based on the `df_str_index`. It also removes the first
     column of the filtered data.
 
     @param df (dataframe)
-        The input dataframe containing discharge data. It is assumed to have 
+        The input dataframe containing discharge data. It is assumed to have
         a column structure where the first column will be dropped after filtering.
     @param day (str)
         A string representing the day for which to retrieve sub-daily discharge data.
         The format of the string should match the format of `df_str_index`.
 
     @return (dataframe)
-        A dataframe containing the sub-daily discharge data for the specified day, 
+        A dataframe containing the sub-daily discharge data for the specified day,
         with the first column removed.
     """
 
@@ -114,11 +114,11 @@ def get_statistics(observed_subdaily_discharge):
     """
     Computes the minimum, mean and maximum discharge out of the given discharge
     timeseries.
-    
+
     @param observed_subdaily_discharge (dataframe)
         The observed discharge for a day.
-    
-    @return (float, float, float) 
+
+    @return (float, float, float)
         The minimum, mean and maximum discharges of the day.
     """
 
@@ -132,14 +132,14 @@ def block_boostrapping(observed_FDCs_df, months, n_evals=100):
     """
     Performs block bootstrapping of the flow duration curve (FDC) time series.
 
-    This function implements a block bootstrapping technique on the observed 
-    flow duration curves (FDCs) for specified months, ensuring that each year's 
-    data is treated as a block. The function removes leap-year extra days to maintain 
-    consistency in yearly data (365 days per year). It returns both the original 
+    This function implements a block bootstrapping technique on the observed
+    flow duration curves (FDCs) for specified months, ensuring that each year's
+    data is treated as a block. The function removes leap-year extra days to maintain
+    consistency in yearly data (365 days per year). It returns both the original
     formatted dataset and a DataFrame containing bootstrapped FDC samples.
 
     @param observed_FDCs_df (pandas.DataFrame)
-        A dataframe containing the observed flow duration curves (FDCs). It must 
+        A dataframe containing the observed flow duration curves (FDCs). It must
         have a datetime index, and the `Discharge` column should represent the flow data.
     @param months (list of int)
         A list of integers representing the months (1-12) to select for the analysis.
@@ -155,12 +155,12 @@ def block_boostrapping(observed_FDCs_df, months, n_evals=100):
 
     Notes:
     -----
-    - The function drops the last day of leap years (February 29 and the associated 
+    - The function drops the last day of leap years (February 29 and the associated
       December 31) to ensure consistency in annual data length (365 days).
-    - If only one year is available in the dataset, the function exits with a 
+    - If only one year is available in the dataset, the function exits with a
       warning message, as bootstrapping requires multiple years.
     """
-    
+
     print(f"Block boostrapping...")
     # Formatting
     observed_FDCs_df.index.name = "date"
@@ -213,12 +213,12 @@ def recreate_stacked_FDCs_from_observed_subdaily_discharge(
     """
     Recreates a stacked flow duration curve (FDC) dataset from sub-daily discharge data.
 
-    Processes sub-daily discharge data to create a time series of flow duration curves 
-    (FDCs). The input data is assumed to have 15-minute discharge intervals. The function 
+    Processes sub-daily discharge data to create a time series of flow duration curves
+    (FDCs). The input data is assumed to have 15-minute discharge intervals. The function
     stacks these intervals into a dataset and saves the processed FDC data to an output file.
 
     @param subdaily_discharge (str)
-        Path to the CSV file containing the sub-daily discharge data. The file must have 
+        Path to the CSV file containing the sub-daily discharge data. The file must have
         at least two columns: 'Date' (format: '%Y-%m-%d %H:%M:%S') and 'Discharge'.
     @param observed_FDCs_output_file (str)
         Path to the output CSV file where the processed stacked FDC dataset will be saved.
@@ -269,11 +269,11 @@ def recreate_stacked_FDCs_from_observed_subdaily_discharge(
 
 def bootstrapping_observed_FDCs(subdaily_discharge, observed_FDCs_output_file, months):
     """
-    Recreates stacked FDCs from sub-daily discharge data, then applies block 
+    Recreates stacked FDCs from sub-daily discharge data, then applies block
     bootstrapping to generate multiple bootstrapped FDC datasets for analysis.
 
     @param subdaily_discharge (str)
-        Path to the CSV file containing the sub-daily discharge data. The file must have 
+        Path to the CSV file containing the sub-daily discharge data. The file must have
         at least two columns: 'Date' (format: '%Y-%m-%d %H:%M:%S') and 'Discharge'.
     @param observed_FDCs_output_file (str)
         Path to the output CSV file where the stacked observed FDC dataset will be saved.

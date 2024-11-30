@@ -7,7 +7,7 @@ def select_months_in_year(df, year, months=[6,7,8,9]):
     """
     Filters a dataframe to include only rows corresponding to a specific
     year and a set of months.
-    
+
     @param df (dataframe)
         The input dataframe, assumed to have a datetime index.
     @param year (int)
@@ -15,8 +15,8 @@ def select_months_in_year(df, year, months=[6,7,8,9]):
     @param months (list of int)
         A list of integers representing the months to keep
         (default is [6, 7, 8, 9]).
-        
-    @return (dataframe) A dataframe containing data from the specified 
+
+    @return (dataframe) A dataframe containing data from the specified
         year and months.
     """
     df = df[df.index.year == year]
@@ -27,14 +27,14 @@ def select_months(df, months):
     """
     Filters a dataframe to include only rows corresponding to a specific
     set of months.
-    
+
     @param df (dataframe)
         The input dataframe, assumed to have a datetime index.
     @param months (list of int)
         A list of integers representing the months to keep
         (default is [6, 7, 8, 9]).
-        
-    @return (dataframe) A dataframe containing data from the specified 
+
+    @return (dataframe) A dataframe containing data from the specified
         months.
     """
     df = df[df.index.month.isin(months)]
@@ -43,13 +43,13 @@ def select_months(df, months):
 def extract_snow_water_eq(results_file, component):
     """
     Extract the snow water equivalent of distributed labels of Hydrobricks.
-    
+
     @param results_file (str)
         The netcdf results file of Hydrobricks.
     @param component (str)
         The name of the distributed label component to retrieve.
         https://hydrobricks.readthedocs.io/en/latest/doc/basics.html#adding-data-related-parameters
-        
+
     @return (dataframe) The requested component.
     """
 
@@ -67,13 +67,13 @@ def extract_snow_water_eq(results_file, component):
 def extract_snow_water_eq_agg(results_file, component):
     """
     Extract the snow water equivalent of aggregated labels of Hydrobricks.
-    
+
     @param results_file (str)
         The netcdf results file of Hydrobricks.
     @param component (str)
         The name of the aggregated label component to retrieve.
         https://hydrobricks.readthedocs.io/en/latest/doc/basics.html#adding-data-related-parameters
-        
+
     @return (dataframe) The requested component.
     """
 
@@ -91,11 +91,11 @@ def extract_hydro_unit_characteristics(results_file):
     """
     Extract the characteristics of the hydrological units of the
     simulation run with Hydrobricks.
-    
+
     @param results_file (str)
         The netcdf results file of Hydrobricks.
-        
-    @return (dataframe, dataframe) The ground areas per hydrological unit, 
+
+    @return (dataframe, dataframe) The ground areas per hydrological unit,
         and the glaciated areas per hydrological unit.
     """
 
@@ -125,15 +125,15 @@ def process_content_snow(results_file, component, weight_area, div_area):
     """
     Weight and sum state variables such as snow content that are not
     yet weighted.
-    
+
     Documentation Hydrobricks:
     # State variables (mm) such as content or snow elements represent
     # the water stored in the respective reservoirs. This value is not
-    # weighted and cannot be summed over the catchment, but must be 
+    # weighted and cannot be summed over the catchment, but must be
     # weighted by the land cover fraction and the relative hydro
     # unit area first.
     Same for melt:output fluxes.
-    
+
     @param results_file (str)
         The netcdf results file of Hydrobricks.
     @param component (str)
@@ -143,7 +143,7 @@ def process_content_snow(results_file, component, weight_area, div_area):
         The ground/glacier areas per hydrological unit, depending on the type of component.
     @param div_area (float)
         The total ground/glacier area.
-    
+
     @return (... , ....)
     """
 
