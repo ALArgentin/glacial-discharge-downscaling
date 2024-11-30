@@ -15,6 +15,7 @@ def select_months_in_year(df, year, months=[6,7,8,9]):
     @param months (list of int)
         A list of integers representing the months to keep
         (default is [6, 7, 8, 9]).
+        
     @return (dataframe) A dataframe containing data from the specified 
         year and months.
     """
@@ -32,6 +33,7 @@ def select_months(df, months):
     @param months (list of int)
         A list of integers representing the months to keep
         (default is [6, 7, 8, 9]).
+        
     @return (dataframe) A dataframe containing data from the specified 
         months.
     """
@@ -47,6 +49,7 @@ def extract_snow_water_eq(results_file, component):
     @param component (str)
         The name of the distributed label component to retrieve.
         https://hydrobricks.readthedocs.io/en/latest/doc/basics.html#adding-data-related-parameters
+        
     @return (dataframe) The requested component.
     """
 
@@ -70,6 +73,7 @@ def extract_snow_water_eq_agg(results_file, component):
     @param component (str)
         The name of the aggregated label component to retrieve.
         https://hydrobricks.readthedocs.io/en/latest/doc/basics.html#adding-data-related-parameters
+        
     @return (dataframe) The requested component.
     """
 
@@ -90,6 +94,7 @@ def extract_hydro_unit_characteristics(results_file):
     
     @param results_file (str)
         The netcdf results file of Hydrobricks.
+        
     @return (dataframe, dataframe) The ground areas per hydrological unit, 
         and the glaciated areas per hydrological unit.
     """
@@ -117,20 +122,30 @@ def extract_hydro_unit_characteristics(results_file):
     return hy_ground_areas, hy_glacier_areas
 
 def process_content_snow(results_file, component, weight_area, div_area):
-    # Documentation Hydrobricks:
-    # the state variables (mm) such as content or snow elements represent
-    # the water stored in the respective reservoirs. In this case, this
-    # value is not weighted and cannot be summed over the catchment, but
-    # must be weighted by the land cover fraction and the relative hydro
-    # unit area.
-
-    # the fluxes (mm), i.e. output elements are already weighted by the
-    # land cover fraction and the relative hydro unit area. Thus, these
-    # elements can be directly summed over all hydro units to obtain the
-    # total contribution of a given component (e.g., ice melt), even when
-    # the hydro units have different areas.
-
-    # -> Not up to date: also ok to use this function for fluxes.
+    """
+    Weight and sum state variables such as snow content that are not
+    yet weighted.
+    
+    Documentation Hydrobricks:
+    # State variables (mm) such as content or snow elements represent
+    # the water stored in the respective reservoirs. This value is not
+    # weighted and cannot be summed over the catchment, but must be 
+    # weighted by the land cover fraction and the relative hydro
+    # unit area first.
+    Same for melt:output fluxes.
+    
+    @param results_file (str)
+        The netcdf results file of Hydrobricks.
+    @param component (str)
+        The name of the component to retrieve.
+        https://hydrobricks.readthedocs.io/en/latest/doc/basics.html#adding-data-related-parameters
+    @param weight_area (array of float)
+        The ground/glacier areas per hydrological unit, depending on the type of component.
+    @param div_area (float)
+        The total ground/glacier area.
+    
+    @return (... , ....)
+    """
 
     # Retrieve the hydro unit parameters
     comp = extract_snow_water_eq(results_file, component)
@@ -138,7 +153,6 @@ def process_content_snow(results_file, component, weight_area, div_area):
     comp_w = comp * weight_area
     # Divide by the area of interest
     comp = np.sum(comp_w, axis=1) / div_area
-    comp = select_months_in_year(comp, 2010)
     return comp, comp_w
 
 def extract_meteorological_data(forcing_file, hydro_units_file, with_debris, melt_model):

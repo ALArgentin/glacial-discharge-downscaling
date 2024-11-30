@@ -11,7 +11,30 @@ import scipy.stats as stats
 from preprocessing import get_statistics, retrieve_subdaily_discharge
 
 
-def simulate_a_flow_duration_curve(params, q_min, q_max, M, function="Singh2014"):
+def simulate_a_flow_duration_curve(params, q_min, q_max, M, day_meteo, function="Singh2014"):
+    """
+    Simulate a flow duration curve based on the given parameter sets
+    and minimum and maximum discharges.
+    
+    @param params (list?)
+        The set of parameters determined in the first calibration step.
+    @param q_min (?)
+        The minimum daily discharge.
+    @param q_max (?)
+        The maximum daily discharge.
+    @param M (?)
+        Parameter 'M' of the equation.
+    @param day_meteo (dataframe)
+        The daily meteorological dataset. Only used for the
+        temporary new version. TO CHECK
+    @param function (str)
+        The function to use for the downscaling, between:
+        - "Singh2014": the original function
+        - "Sigmoid_d": the glacial function
+        - "Sigmoid": the simplified glacial function
+    
+    @return y_fit (?) Return the simulated discharge.
+    """
     # Extract the values of the params
     if np.isnan(params).any():
         a = b = c = d = np.nan
@@ -22,6 +45,15 @@ def simulate_a_flow_duration_curve(params, q_min, q_max, M, function="Singh2014"
             a, b, c, d = params
         elif function == "Sigmoid":
             a, b, c = params
+        elif function == "Sigmoid_ext_var":
+            var1 = day_meteo['Temperature'].values[0]
+            var2 = day_meteo['Precipitation'].values[0]
+            var3 = day_meteo['Radiation'].values[0]
+            #a1, a2, a3, b1, b2, b3, c1, c2, c3 = params
+            a1, b1, c1 = params
+            a = a1 * var1 #+ a2 * var2 + a3 * var3
+            b = b1 * var1 #+ b2 * var2 + b3 * var3
+            c = c1 * var1 #+ c2 * var2 + c3 * var3
 
     # Generate fitted curve for plotting
     t_fit = np.linspace(0, 1, 96)
@@ -29,13 +61,34 @@ def simulate_a_flow_duration_curve(params, q_min, q_max, M, function="Singh2014"
         y_fit = fit.discharge_time_equation_Singh2014(t_fit, a, b, q_min, q_max, M)
     elif function == "Sigmoid_d":
         y_fit = fit.discharge_time_equation_Sigmoid_d(t_fit, a, b, c, d, q_min, q_max, M)
-    elif function == "Sigmoid":
+    elif function == "Sigmoid" or function == "Sigmoid_ext_var":
         y_fit = fit.discharge_time_equation_Sigmoid(t_fit, a, b, c, q_min, q_max, M)
 
     # Return the simulated discharge
     return y_fit
 
-def calibration_workflow(meteo_df, filename, function, dataframe_filename, results, months, months_str):
+def calibration_workflow(meteo_df, filename, function, dataframe_filename, 
+                         file_paths, months):
+    """
+    Calibration workflow.
+    
+    @param meteo_df (dataframe)
+        The daily meteorological dataset, which also contains the
+        calibrated downscaling parameters.
+    @param filename (?)
+    
+    @param function (str)
+        The function to use for the downscaling, between:
+        - "Singh2014": the original function
+        - "Sigmoid_d": the glacial function
+        - "Sigmoid": the simplified glacial function
+    @param (?)
+    @param file_paths (FilePaths)
+        Object containing all file paths, used to give the file
+        path and name of the results files.
+    @param months (list)
+        The months to which the analysis is restricted.
+    """
 
     # Determined parameter lists
     a_array = []
@@ -43,6 +96,15 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
     c_array = []
     d_array = []
     M_array = []
+    a1_array = []
+    a2_array = []
+    a3_array = []
+    b1_array = []
+    b2_array = []
+    b3_array = []
+    c1_array = []
+    c2_array = []
+    c3_array = []
     qmin_array = []
     qmax_array = []
     qmean_array = []
@@ -67,34 +129,40 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
     df.rename(columns={df.columns[1]: 'Discharge'}, inplace=True)
     # Change the index format
     df.index = pd.to_datetime(df.iloc[:,0].values, format='%Y-%m-%d')
-    df_str_index = df.index.strftime('%Y-%m-%d')
-
+        
+    meteo_df_str_index = meteo_df.index.strftime('%Y-%m-%d')
+    
     daily_df = df.groupby(pd.Grouper(freq='D')).mean()
     daily_summer_df = fc.select_months(daily_df, months)
 
     start_t = datetime.now()
+    
+    time_df = df
+    if function == "Sigmoid_ext_var":
+        time_df = meteo_df
 
-    date_range = np.unique(fc.select_months(df, months).index.strftime('%Y-%m-%d'))
+    date_range = np.unique(fc.select_months(time_df, months).index.strftime('%Y-%m-%d'))
     for i, day in enumerate(date_range):
         if day.endswith("-06-01"):
             print(f"Processing year {day}: {(datetime.now() - start_t).seconds} s spent")
-        observed_subdaily_discharge = retrieve_subdaily_discharge(df, df_str_index, day=day)
-
+        observed_subdaily_discharge = retrieve_subdaily_discharge(df, day=day)
+        day_meteo = meteo_df[meteo_df_str_index == day]
+        
         # CAREFUL, in this function I switched X_data and y_data in the sigmoid functions.... Consequently also switched for the rest.
-        params, cov, x_data1, y_data1, x_fit1, y_fit1, r21 = fit.fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge, function=function)
+        params, cov, x_data1, y_data1, x_fit1, y_fit1, r21 = fit.fit_a_and_b_to_discharge_probability_curve(observed_subdaily_discharge, day_meteo, function=function)
         x_data1_df.loc[day] = x_data1
         y_data1_df.loc[day] = y_data1
         if len(x_fit1) != 0: x_fit1_df.loc[day] = x_fit1
         if len(y_fit1) != 0: y_fit1_df.loc[day] = y_fit1
         if r21: r21_df.loc[day] = r21
         q_min, q_mean, q_max = get_statistics(observed_subdaily_discharge)
-        M, var, x_data2, y_data2, t_fit2, y_fit2, r22 = fit.fit_m_to_flow_duration_curve(observed_subdaily_discharge, params, q_min, q_max, function=function)
+        M, var, x_data2, y_data2, t_fit2, y_fit2, r22 = fit.fit_m_to_flow_duration_curve(observed_subdaily_discharge, params, q_min, q_max, day_meteo, function=function)
         x_data2_df.loc[day] = x_data2
         y_data2_df.loc[day] = y_data2
         if len(t_fit2) != 0: t_fit2_df.loc[day] = t_fit2
         if len(y_fit2) != 0: y_fit2_df.loc[day] = y_fit2
         if r22: r22_df.loc[day] = r22
-        simulated_subdaily_distribution = simulate_a_flow_duration_curve(params, q_min, q_max, M, function=function)
+        simulated_subdaily_distribution = simulate_a_flow_duration_curve(params, q_min, q_max, M, day_meteo, function=function)
 
         # Extract the values of the params
         if np.isnan(params).any():
@@ -106,12 +174,32 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
                 a, b, c, d = params
             elif function == "Sigmoid":
                 a, b, c = params
+            elif function == "Sigmoid_ext_var":
+                var1 = day_meteo['Temperature'].values[0]
+                var2 = day_meteo['Precipitation'].values[0]
+                var3 = day_meteo['Radiation'].values[0]
+                #a1, a2, a3, b1, b2, b3, c1, c2, c3 = params
+                a1, b1, c1 = params
+                a = a1 * var1 #+ a2 * var2 + a3 * var3
+                b = b1 * var1 #+ b2 * var2 + b3 * var3
+                c = c1 * var1 #+ c2 * var2 + c3 * var3
 
         if function == "Sigmoid_d":
             c_array.append(c)
             d_array.append(d)
         elif function == "Sigmoid":
             c_array.append(c)
+        elif function == "Sigmoid_ext_var":
+            c_array.append(c)
+            a1_array.append(a1)
+            #a2_array.append(a2)
+            #a3_array.append(a3)
+            b1_array.append(b1)
+            #b2_array.append(b2)
+            #b3_array.append(b3)
+            c1_array.append(c1)
+            #c2_array.append(c2)
+            #c3_array.append(c3)
         h = stats.entropy(observed_subdaily_discharge)[0]
 
         a_array.append(a)
@@ -124,32 +212,75 @@ def calibration_workflow(meteo_df, filename, function, dataframe_filename, resul
     print("End of calibration.")
 
     meteo_df = meteo_df.reindex(daily_summer_df.index, fill_value=np.nan, method='nearest', tolerance='2min')
-
-    meteo_df["$a$"] = a_array
-    meteo_df["$b$"] = b_array
+    # WORKS HERE
+    
+    data_to_assign = {
+    "$a$": a_array,
+    "$b$": b_array,
+    "$M$": M_array,
+    "$Q_{min}$": qmin_array,
+    "$Q_{max}$": qmax_array,
+    "$Q_{mean}$": qmean_array,
+    "Entropy": h_array
+    }
     if function == "Sigmoid_d":
-        meteo_df["$c$"] = c_array
-        meteo_df["$d$"] = d_array
+        data_to_assign.update({"$c$": c_array, "$d$": d_array})
     elif function == "Sigmoid":
-        meteo_df["$c$"] = c_array
-    meteo_df["$M$"] = M_array
-    meteo_df["$Q_{min}$"] = qmin_array
-    meteo_df["$Q_{max}$"] = qmax_array
-    meteo_df["$Q_{mean}$"] = qmean_array
-    meteo_df["Entropy"] = h_array
-    meteo_df['Day of the year'] = daily_summer_df.index.dayofyear
+        data_to_assign.update({"$c$": c_array})
+    elif function == "Sigmoid_ext_var":
+        data_to_assign.update({
+            "$c$": c_array,
+            "$a1$": a1_array,
+            "$b1$": b1_array,
+            "$c1$": c1_array
+        })
+    
+    #meteo_df = meteo_df.reindex(time_df.index)
+    for key, value in data_to_assign.items():
+        meteo_df.loc[:, key] = np.nan
+        meteo_df.loc[:, key].loc[date_range] = value
+        #print(bvuipö)
+        #meteo_df.loc[time_df.index, key] = value
+    #print(ioäbä)
+    
+    #meteo_df["Day of the year"] = daily_summer_df.index.dayofyear
+
+ #   meteo_df.loc[time_df.index, "$a$"] = a_array
+ #   meteo_df.loc[time_df.index, "$b$"] = b_array
+ #   if function == "Sigmoid_d":
+ #       meteo_df.loc[time_df.index, "$c$"] = c_array
+ #       meteo_df.loc[time_df.index, "$d$"] = d_array
+ #   elif function == "Sigmoid":
+ #       meteo_df.loc[time_df.index, "$c$"] = c_array
+ #   elif function == "Sigmoid_ext_var":
+ #       meteo_df.loc[time_df.index, "$c$"] = c_array
+ #       meteo_df.loc[time_df.index, "$a1$"] = a1_array
+ #       #meteo_df.loc[time_df.index, "$a2$"] = a2_array
+ #       #meteo_df.loc[time_df.index, "$a3$"] = a3_array
+ #       meteo_df.loc[time_df.index, "$b1$"] = b1_array
+ #       #meteo_df.loc[time_df.index, "$b2$"] = b2_array
+ #       #meteo_df.loc[time_df.index, "$b3$"] = b3_array
+ #       meteo_df.loc[time_df.index, "$c1$"] = c1_array
+ #       #meteo_df.loc[time_df.index, "$c2$"] = c2_array
+ #       #meteo_df.loc[time_df.index, "$c3$"] = c3_array
+ #   meteo_df.loc[time_df.index, "$M$"] = M_array
+ #   meteo_df.loc[time_df.index, "$Q_{min}$"] = qmin_array
+ #   meteo_df.loc[time_df.index, "$Q_{max}$"] = qmax_array
+ #   meteo_df.loc[time_df.index, "$Q_{mean}$"] = qmean_array
+ #   meteo_df.loc[time_df.index, "Entropy"] = h_array
+    meteo_df["Day of the year"] = daily_summer_df.index.dayofyear
     meteo_df.to_csv(dataframe_filename)
 
-    x_data1_df.to_csv(f"{results}x_data1_df_{function}_{months_str}.csv")
-    y_data1_df.to_csv(f"{results}y_data1_df_{function}_{months_str}.csv")
-    x_fit1_df.to_csv(f"{results}x_fit1_df_{function}_{months_str}.csv")
-    y_fit1_df.to_csv(f"{results}y_fit1_df_{function}_{months_str}.csv")
-    r21_df.to_csv(f"{results}r21_df_{function}_{months_str}.csv")
-    x_data2_df.to_csv(f"{results}x_data2_df_{function}_{months_str}.csv")
-    y_data2_df.to_csv(f"{results}y_data2_df_{function}_{months_str}.csv")
-    t_fit2_df.to_csv(f"{results}t_fit2_df_{function}_{months_str}.csv")
-    y_fit2_df.to_csv(f"{results}y_fit2_df_{function}_{months_str}.csv")
-    r22_df.to_csv(f"{results}r22_df_{function}_{months_str}.csv")
+    x_data1_df.to_csv(file_paths.x_data1_filename)
+    y_data1_df.to_csv(file_paths.y_data1_filename)
+    x_fit1_df.to_csv(file_paths.x_fit1_filename)
+    y_fit1_df.to_csv(file_paths.y_fit1_filename)
+    r21_df.to_csv(file_paths.r21_filename)
+    x_data2_df.to_csv(file_paths.x_data2_filename)
+    y_data2_df.to_csv(file_paths.y_data2_filename)
+    t_fit2_df.to_csv(file_paths.t_fit2_filename)
+    y_fit2_df.to_csv(file_paths.y_fit2_filename)
+    r22_df.to_csv(file_paths.r22_filename)
 
 
 

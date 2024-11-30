@@ -72,9 +72,6 @@ def find_and_save_best_pdf_functions(meteo_df, filename, function):
         csv_out.writerow(["$Q_{max}$", Qmax_type, Qmax_params, Qmax_stats])
 
 
-
-
-
 def get_KDE_model(meteo_df, variable, weather=False):
 
     if weather:
