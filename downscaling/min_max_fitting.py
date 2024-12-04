@@ -120,13 +120,14 @@ def gam_on_discharge(meteo_df, catchment, file_paths):
         
         # Save the fitted model to a file
         ro.r(f'saveRDS(res, file="{gam_model}")')
+ 
 
 def linear_regression_with_scikit(q_mean, q_min_max):
     """
     Performs linear regression using scikit-learn and evaluates the model.
 
-    This function fits a linear regression model to the provided data, computes 
-    performance metrics, and outputs key information such as the model's score, 
+    This function fits a linear regression model to the provided data, computes
+    performance metrics, and outputs key information such as the model's score,
     coefficients, and intercept.
 
     @param q_mean (numpy.ndarray or pandas.DataFrame)
@@ -151,7 +152,7 @@ def linear_regression_with_scikit(q_mean, q_min_max):
 
     Notes:
     -----
-    - Ensure that `q_mean` and `q_min_max` are appropriately preprocessed and 
+    - Ensure that `q_mean` and `q_min_max` are appropriately preprocessed and
       compatible with scikit-learn's `LinearRegression` model.
     """
 
@@ -173,12 +174,12 @@ def extract_discharge_relation_to_daily_mean(meteo_df, filename, criteria):
     """
     Extracts discharge relationships to daily mean values and performs regression analysis.
 
-    This function computes linear and multiple linear regression models to 
-    establish relationships between the mean daily discharge and its minimum 
+    This function computes linear and multiple linear regression models to
+    establish relationships between the mean daily discharge and its minimum
     and maximum values. Results are saved to a specified CSV file.
 
     @param meteo_df (pandas.DataFrame)
-        DataFrame containing meteorological data with columns for daily 
+        DataFrame containing meteorological data with columns for daily
         discharge values:
         - `$Q_{mean}$`: Mean daily discharge.
         - `$Q_{min}$`: Minimum daily discharge.
@@ -186,7 +187,7 @@ def extract_discharge_relation_to_daily_mean(meteo_df, filename, criteria):
     @param filename (str)
         Path to the output CSV file where regression results are written.
     @param criteria (list of str)
-        List of additional features (column names in `meteo_df`) to include in 
+        List of additional features (column names in `meteo_df`) to include in
         the multiple regression analysis.
 
     @return tuple
@@ -203,9 +204,9 @@ def extract_discharge_relation_to_daily_mean(meteo_df, filename, criteria):
     Notes:
     -----
     - The function drops rows with missing values in `meteo_df` before performing regressions.
-    - For each regression, the model's score, coefficients, intercept, mean 
+    - For each regression, the model's score, coefficients, intercept, mean
       squared error (MSE), and R² values are computed.
-    - Results are saved in the specified CSV file in two formats: 
+    - Results are saved in the specified CSV file in two formats:
       - Without additional features (linear regression).
       - With additional features (multiple regression).
     """

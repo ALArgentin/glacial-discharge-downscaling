@@ -9,25 +9,22 @@ def convert_to_hydrobricks_units(daily_mean_discharges, watershed_path, area_txt
     Converts discharge units between hydrological and Hydrobricks formats.
 
     This function handles the conversion of daily mean discharge data from
-    one format to another, suitable for Hydrobricks usage. It either converts
-    discharges from volumetric flow rates (m³/s) to depth-based units (mm/d)
-    or performs the reverse operation, depending on the `opposite_conversion`
-    flag.
+    one format to another, suitable for Hydrobricks usage. It converts
+    discharges from depth-based units (mm/d) to volumetric flow rates (m³/s).
 
     @param daily_mean_discharges (str)
         Path to the CSV file containing daily mean discharges. Must include
         a 'Date' column and discharge data columns.
     @param watershed_path (str)
         Directory path containing watershed area data files.
-    @param area_txt (str)
-        Filename suffix for area-related watershed files.
     @param hydrobricks_files (str)
         Path or prefix for Hydrobricks output files.
-    @param opposite_conversion (bool, optional)
-        If `True`, performs the conversion from mm/d to m³/s. Defaults to `False`.
-    @param catchment (str, optional)
+    @param catchment (str)
         The specific catchment key for processing, used in file naming.
-        Required when `opposite_conversion` is `True`.
+    @param start_date (str, optional)
+        The start of the discharge date range.
+    @param end_date (str, optional)
+        The end of the discharge date range.
 
     @return (None)
         Writes the converted discharge data to the specified Hydrobricks
@@ -35,8 +32,6 @@ def convert_to_hydrobricks_units(daily_mean_discharges, watershed_path, area_txt
 
     Notes:
     -----
-    - For `opposite_conversion=True`, the function assumes a fixed date
-      range from '2010-01-01' to '2014-12-31'.
     - Watershed area values are read from text files corresponding to
       each catchment or discharge key.
     - The conversion between units considers the following factors:

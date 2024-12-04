@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import scipy.stats as stats
 import seaborn as sns
+from file_paths import FilePaths
 from dask.array.chunk import linspace
 from matplotlib import cm, ticker
 from matplotlib.colorbar import ColorbarBase
@@ -1219,16 +1220,16 @@ def plot_downscaling_improvement(observed_FDCs, simulated_FDCs_from_observed_mea
     [ax.spines['right'].set_visible(False) for ax in axes.flatten()]
     [ax.spines['top'].set_visible(False) for ax in axes.flatten()]
     fig.subplots_adjust(wspace=0.3)
-    axes[0].plot(FDCs1_df.index, FDCs1_df.values, '.', label='Observed 15 min FDCs', color='orange')
-    axes[1].plot(FDCs1_df.index, FDCs1_df.values, '.', label='Observed 15 min FDCs', color='orange')
-    axes[2].plot(FDCs1_df.index, FDCs1_df.values, '.', label='Observed 15 min FDCs', color='orange')
-    axes[3].plot(FDCs1_df.index, FDCs1_df.values, '.', label='Observed 15 min FDCs', color='orange')
-    axes[4].plot(FDCs1_df.index, FDCs1_df.values, '.', label='Observed 15 min FDCs', color='orange', zorder=10)
+    axes[0].plot(FDCs1_df.index, FDCs1_df.values, '.', label='15-min measured discharge', color='orange')
+    axes[1].plot(FDCs1_df.index, FDCs1_df.values, '.', label='15-min measured discharge', color='orange')
+    axes[2].plot(FDCs1_df.index, FDCs1_df.values, '.', label='15-min measured discharge', color='orange')
+    axes[3].plot(FDCs1_df.index, FDCs1_df.values, '.', label='15-min measured discharge', color='orange')
+    axes[4].plot(FDCs1_df.index, FDCs1_df.values, '.', label='15-min measured discharge', color='orange', zorder=10)
 
-    axes[0].plot(FDCs2_df.index, FDCs2_df.values, '.', label='Observed daily mean FDCs', color='teal')
-    axes[1].plot(FDCs5_df.index, FDCs5_df.values, '.', label='Observed daily mean FDCs + weather', color='teal')
-    axes[2].plot(FDCs6_df.index, FDCs6_df.values, '.', label='Observed daily mean FDCs + weather + multiregr', color='teal')
-    axes[3].plot(FDCs3_df.index, FDCs3_df.values, '.', label='Simulated daily mean FDCs', color='teal')
+    axes[0].plot(FDCs2_df.index, FDCs2_df.values, '.', label='Daily mean of measured discharge', color='teal')
+    axes[1].plot(FDCs5_df.index, FDCs5_df.values, '.', label='Daily mean measured with weather constraint', color='teal')
+    axes[2].plot(FDCs6_df.index, FDCs6_df.values, '.', label='Daily mean measured with weather and multiregr', color='teal')
+    axes[3].plot(FDCs3_df.index, FDCs3_df.values, '.', label='Simulated daily mean discharge', color='teal')
 
     for i in range(99):
         axes[4].plot(FDCs4_df.index, FDCs4_df[str(i)].values, '.', color='teal', markeredgewidth=0.0, alpha=0.2)
@@ -1269,9 +1270,9 @@ def plot_downscaling_improvement(observed_FDCs, simulated_FDCs_from_observed_mea
     axes[4].xaxis.set_minor_formatter(dates.DateFormatter(''))
     axes[4].xaxis.set_major_locator(dates.DayLocator())
     axes[4].xaxis.set_major_formatter(dates.DateFormatter('%d/%m'))
-    plt.savefig(filename, format="pdf", bbox_inches='tight', dpi=100)
+    plt.savefig(filename, format="png", bbox_inches='tight', dpi=100)
 
-def Mutzner2015_plot(discharge_15min, months, filename):
+def Mutzner2015_plot(subdaily_discharge, months, filename):
     # Observed discharge
     df = pd.read_csv(subdaily_discharge, header=0, na_values='', usecols=[0, 1],
                      index_col = 0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
@@ -1339,7 +1340,7 @@ def Mutzner2015_plot(discharge_15min, months, filename):
             j += 1
     axes[1][0].set_ylabel('Detrended discharge (Mutzner et al., 2015)')
     axes[-1][1].set_xlabel('Time during day (in hours)')
-    plt.savefig(filename, format="pdf", bbox_inches='tight', dpi=100)
+    plt.savefig(filename, format="png", bbox_inches='tight', dpi=100)
 
     # Start the plotting
     fig, axes = plt.subplots(nb_row, nb_col, figsize=(10, 10), sharex=True)

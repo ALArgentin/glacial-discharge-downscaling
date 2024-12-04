@@ -157,48 +157,48 @@ def process_content_snow(results_file, component, weight_area, div_area):
 
 def extract_meteorological_data(forcing_file, hydro_units_file, with_debris, melt_model):
     """
-    Extracts meteorological data and initializes hydro units based on input 
+    Extracts meteorological data and initializes hydro units based on input
     configurations.
 
-    This function loads and processes meteorological forcing data and hydrological 
-    unit information, returning extracted precipitation, temperature, radiation, 
+    This function loads and processes meteorological forcing data and hydrological
+    unit information, returning extracted precipitation, temperature, radiation,
     and potential evapotranspiration (PET) data.
 
     @param forcing_file (str)
         Path to the file containing meteorological forcing data.
     @param hydro_units_file (str)
-        Path to the CSV file defining hydrological units and their properties, 
+        Path to the CSV file defining hydrological units and their properties,
         such as area and elevation.
     @param with_debris (bool)
-        Indicates whether debris-covered glaciers should be included in the 
+        Indicates whether debris-covered glaciers should be included in the
         land cover types.
     @param melt_model (str)
         Specifies the melt model to use. Options:
         - 'temperature_index' or 'degree_day': No additional columns required.
-        - 'degree_day_aspect': Requires additional columns for slope and 
+        - 'degree_day_aspect': Requires additional columns for slope and
           aspect classification in the hydrological units file.
 
     @return tuple
         A tuple containing the following:
         - hydro_units : HydroUnits
-            The initialized HydroUnits object containing land cover and hydro unit 
+            The initialized HydroUnits object containing land cover and hydro unit
             data.
         - precipitations : pandas.DataFrame
             DataFrame containing precipitation data indexed by time.
         - temperatures : pandas.DataFrame
             DataFrame containing temperature data indexed by time.
         - radiations : pandas.DataFrame or float
-            DataFrame containing radiation data indexed by time, or NaN if not 
+            DataFrame containing radiation data indexed by time, or NaN if not
             available.
         - pet : pandas.DataFrame
-            DataFrame containing potential evapotranspiration (PET) data indexed 
+            DataFrame containing potential evapotranspiration (PET) data indexed
             by time.
 
     Notes:
     -----
-    - When `with_debris` is True, debris-covered glaciers are included as separate 
+    - When `with_debris` is True, debris-covered glaciers are included as separate
       land cover types (`glacier_ice` and `glacier_debris`).
-    - If the forcing data includes four variables, radiation and PET are extracted. 
+    - If the forcing data includes four variables, radiation and PET are extracted.
       Otherwise, only PET is available, and radiation is set to NaN.
     """
 
@@ -217,15 +217,7 @@ def extract_meteorological_data(forcing_file, hydro_units_file, with_debris, mel
     # Hydro units
     hyd_units = hb.HydroUnits(land_cover_types, land_cover_names)
     hyd_units.load_from_csv(hydro_units_file, column_area='area', column_elevation='elevation',
-                                other_columns=other_columns)
-
-    # Finally, initialize the HydroUnits cover with the first cover values of the
-    # BehaviourLandCoverChange object (no need to do it for the ground land cover type).
-    #if with_debris:
-    #    hyd_units.initialize_from_land_cover_change('glacier_ice', changes_df[0])
-    #    hyd_units.initialize_from_land_cover_change('glacier_debris', changes_df[1])
-    #else:
-    #    hyd_units.initialize_from_land_cover_change('glacier', changes_df[0])
+                            other_columns=other_columns)
 
     forcing = hb.Forcing(hyd_units)
     forcing.load_from(forcing_file)
@@ -242,28 +234,28 @@ def extract_meteorological_data(forcing_file, hydro_units_file, with_debris, mel
 
     return hydro_units, precipitations, temperatures, radiations, pet
 
-def get_meteorological_hydrological_data(forcing_file, results_file, hydro_units_file, months, melt_model, with_debris):
+def get_meteorological_hydrological_data(fp, months, melt_model, with_debris):
 
-    hydro_units, precipitations, temperatures, radiations, pet = extract_meteorological_data(forcing_file, hydro_units_file,
+    hydro_units, precipitations, temperatures, radiations, pet = extract_meteorological_data(fp.forcing_file, fp.hydro_units_file,
                                                                                              with_debris=with_debris, melt_model=melt_model)
     elevations = hydro_units['elevation', 'm']
     areas = hydro_units['area', 'm2']
     total_area = np.sum(areas)
 
     # Get ground, glacier and total areas for each hydro unit
-    hy_ground_areas, hy_glacier_areas = extract_hydro_unit_characteristics(results_file)
+    hy_ground_areas, hy_glacier_areas = extract_hydro_unit_characteristics(fp.results_file)
     total_ground_area = np.sum(hy_ground_areas, axis=1)
     total_glacier_area = np.sum(hy_glacier_areas, axis=1)
 
     # Process all :content components
-    comp1_m, _ = process_content_snow(results_file, "glacier:outflow_rain_snowmelt:output", hy_glacier_areas.values, total_glacier_area)
-    comp2_m, comp2_w = process_content_snow(results_file, "glacier:melt:output",            hy_glacier_areas.values, total_glacier_area)
-    comp3_m, comp3_w = process_content_snow(results_file, "ground_snowpack:melt:output",    hy_ground_areas.values,  total_ground_area)
-    comp4_m, comp4_w = process_content_snow(results_file, "glacier_snowpack:melt:output",   hy_glacier_areas.values, total_glacier_area)
-    comp5_m, comp5_w = process_content_snow(results_file, "ground_snowpack:snow",     hy_ground_areas.values,  total_ground_area)
-    comp6_m, comp6_w = process_content_snow(results_file, "glacier_snowpack:snow",    hy_glacier_areas.values, total_glacier_area)
-    comp7_m = extract_snow_water_eq_agg(results_file, "glacier_area_icemelt_storage:content")
-    comp8_m = extract_snow_water_eq_agg(results_file, "glacier_area_icemelt_storage:outflow:output")
+    #comp1_m, _ = process_content_snow(fp.results_file, "glacier:outflow_rain_snowmelt:output", hy_glacier_areas.values, total_glacier_area)
+    comp2_m, comp2_w = process_content_snow(fp.results_file, "glacier:melt:output",            hy_glacier_areas.values, total_glacier_area)
+    comp3_m, comp3_w = process_content_snow(fp.results_file, "ground_snowpack:melt:output",    hy_ground_areas.values,  total_ground_area)
+    comp4_m, comp4_w = process_content_snow(fp.results_file, "glacier_snowpack:melt:output",   hy_glacier_areas.values, total_glacier_area)
+    comp5_m, comp5_w = process_content_snow(fp.results_file, "ground_snowpack:snow",     hy_ground_areas.values,  total_ground_area)
+    comp6_m, comp6_w = process_content_snow(fp.results_file, "glacier_snowpack:snow",    hy_glacier_areas.values, total_glacier_area)
+    #comp7_m = extract_snow_water_eq_agg(fp.results_file, "glacier_area_icemelt_storage:content")
+    #comp8_m = extract_snow_water_eq_agg(fp.results_file, "glacier_area_icemelt_storage:outflow:output")
 
     precip_m = precipitations * areas
     precip_m = np.sum(precip_m, axis=1) / total_area
