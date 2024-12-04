@@ -3,8 +3,9 @@ import pandas as pd
 from extract_hydrological_variables import select_months
 
 
-def convert_to_hydrobricks_units(daily_mean_discharges, watershed_path, area_txt,
-                                 hydrobricks_files, opposite_conversion=False, catchment=None):
+def convert_to_hydrobricks_units(daily_mean_discharges, watershed_path,
+                                 hydrobricks_files, catchment, 
+                                 start_date='2010-01-01', end_date='2014-12-31'):
     """
     Converts discharge units between hydrological and Hydrobricks formats.
 
@@ -38,43 +39,20 @@ def convert_to_hydrobricks_units(daily_mean_discharges, watershed_path, area_txt
         - 1 m³/s = 86400 mm/d over the watershed area.
         - 1 mm/d = 1000 m³/s per watershed area.
     """
-    if opposite_conversion:
-        start_date = '2010-01-01'
-        end_date = '2014-12-31'
-        start_datetime = pd.to_datetime(start_date)
-        end_datetime = pd.to_datetime(end_date)
-        times = pd.date_range(start_datetime, end_datetime, freq='D')
-        means = pd.read_csv(daily_mean_discharges, header=0, na_values='', usecols=[0,1])
-        #means.insert(0, 'Date', times)
-        means.set_index('Date', inplace=True)
-    else:
-        timestamp_format = '%Y-%m-%d'
-        means = pd.read_csv(daily_mean_discharges + '.csv', header=0, na_values=np.nan,
-                            parse_dates=['Date'], date_format=timestamp_format, index_col=0)
 
-    for key in means:
+    start_datetime = pd.to_datetime(start_date)
+    end_datetime = pd.to_datetime(end_date)
+    times = pd.date_range(start_datetime, end_datetime, freq='D')
+    means = pd.read_csv(daily_mean_discharges, header=0, na_values='', usecols=[0,1])
+    means.set_index('Date', inplace=True)
 
-        if key != "BIrest":
-            if opposite_conversion:
-                filename = watershed_path + catchment + area_txt
-                suffix = '_' + catchment + '.csv'
-            else:
-                filename = watershed_path + key + area_txt
-                suffix = '_' + key + '.csv'
-            watershed_area = np.loadtxt(filename, skiprows=1)
-            # Create new pandas DataFrame.
-            subdataframe = means[[key]]
-            m_to_mm = 1000
-            persec_to_perday = 86400
-            if opposite_conversion:
-                subdataframe = subdataframe * watershed_area / m_to_mm / persec_to_perday
-                filename = hydrobricks_files
-                subdataframe.columns = ['Discharge (m3/s)']
-            else:
-                subdataframe = subdataframe / watershed_area * m_to_mm * persec_to_perday
-                filename = hydrobricks_files + suffix
-                subdataframe.columns = ['Discharge (mm/d)']
-            subdataframe.to_csv(filename, date_format='%d/%m/%Y')
+    watershed_area = np.loadtxt(watershed_path, skiprows=1)
+    m_to_mm = 1000
+    persec_to_perday = 86400
+    means = means * watershed_area / m_to_mm / persec_to_perday
+    filename = hydrobricks_files
+    means.columns = ['Discharge (m3/s)']
+    means.to_csv(filename, date_format='%d/%m/%Y')
 
 def retrieve_subdaily_discharge(df, day):
     """
