@@ -156,6 +156,51 @@ def process_content_snow(results_file, component, weight_area, div_area):
     return comp, comp_w
 
 def extract_meteorological_data(forcing_file, hydro_units_file, with_debris, melt_model):
+    """
+    Extracts meteorological data and initializes hydro units based on input 
+    configurations.
+
+    This function loads and processes meteorological forcing data and hydrological 
+    unit information, returning extracted precipitation, temperature, radiation, 
+    and potential evapotranspiration (PET) data.
+
+    @param forcing_file (str)
+        Path to the file containing meteorological forcing data.
+    @param hydro_units_file (str)
+        Path to the CSV file defining hydrological units and their properties, 
+        such as area and elevation.
+    @param with_debris (bool)
+        Indicates whether debris-covered glaciers should be included in the 
+        land cover types.
+    @param melt_model (str)
+        Specifies the melt model to use. Options:
+        - 'temperature_index' or 'degree_day': No additional columns required.
+        - 'degree_day_aspect': Requires additional columns for slope and 
+          aspect classification in the hydrological units file.
+
+    @return tuple
+        A tuple containing the following:
+        - hydro_units : HydroUnits
+            The initialized HydroUnits object containing land cover and hydro unit 
+            data.
+        - precipitations : pandas.DataFrame
+            DataFrame containing precipitation data indexed by time.
+        - temperatures : pandas.DataFrame
+            DataFrame containing temperature data indexed by time.
+        - radiations : pandas.DataFrame or float
+            DataFrame containing radiation data indexed by time, or NaN if not 
+            available.
+        - pet : pandas.DataFrame
+            DataFrame containing potential evapotranspiration (PET) data indexed 
+            by time.
+
+    Notes:
+    -----
+    - When `with_debris` is True, debris-covered glaciers are included as separate 
+      land cover types (`glacier_ice` and `glacier_debris`).
+    - If the forcing data includes four variables, radiation and PET are extracted. 
+      Otherwise, only PET is available, and radiation is set to NaN.
+    """
 
     if with_debris:
         land_cover_names = ['ground', 'glacier_ice', 'glacier_debris']
