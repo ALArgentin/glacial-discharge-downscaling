@@ -776,17 +776,22 @@ def plot_function_sensitivity(filename, variables, function="Sigmoid"):
                     verticalalignment='center', transform=axes[0][0].transAxes)
     plt.savefig(filename, format="pdf", bbox_inches='tight', dpi=100)
 
-def plot_q_mean_q_min_q_max_regressions(meteo_df, regression_filename, filename, test_influences=True):
+def plot_q_mean_q_min_q_max_regressions(meteo_df, regression_filename, filename,
+                                        test_influences=True, regr=False, 
+                                        influence_label='All snow', 
+                                        start_date='2010-01-01', 
+                                        end_date='2014-12-31'):
 
+    meteo_df = meteo_df[(meteo_df['Date'] > start_date) & (meteo_df['Date'] <= end_date)]
+    
     if test_influences:
-        influence_label = 'Glacier area percentage'
         filename += "_" + influence_label
         # 'Date', 'Precipitation', 'Temperature', 'Snow melt', 'Ice melt', 'All snow',
         # 'Glacier snow', '$a$', '$b$', '$c$', '$M$', '$Q_{min}$', '$Q_{max}$', '$Q_{mean}$', 'Entropy',
         # 'Day of the year', 'Glacier area percentage', 'Radiation'
         cmap = plt.get_cmap('viridis')
-        normalize = mcolors.Normalize(vmin=np.min(meteo_df[influence_label].values),
-                                      vmax=np.max(meteo_df[influence_label].values))
+        normalize = mcolors.Normalize(vmin=np.nanmin(meteo_df[influence_label].values),
+                                      vmax=np.nanmax(meteo_df[influence_label].values))
 
     fig, axes = plt.subplots(1, 1, figsize=(5, 5))
 
@@ -806,26 +811,32 @@ def plot_q_mean_q_min_q_max_regressions(meteo_df, regression_filename, filename,
         axes.plot(meteo_df['$Q_{mean}$'].values, meteo_df['$Q_{min}$'].values, '+', label='$Q_{min}$', color='blue')
         axes.plot(meteo_df['$Q_{mean}$'].values, meteo_df['$Q_{max}$'].values, '+', label='$Q_{max}$', color='teal')
 
-    # Retrieve the regression data
-    regressions_df = pd.read_csv(regression_filename, names=range(10))
-    print(regressions_df)
+    if regr:
+        # Retrieve the regression data
+        regressions_df = pd.read_csv(regression_filename, header=0)
+    
+        q_min_data = regressions_df.loc[regressions_df["variable2"] == "$Q_{min}$"]
+        q_max_data = regressions_df.loc[regressions_df["variable2"] == "$Q_{max}$"]
+        if test_influences:
+            q_min_data = q_min_data.loc[q_min_data["variable3"].notna()]
+            q_max_data = q_max_data.loc[q_max_data["variable3"].notna()]
+        else:
+            q_min_data = q_min_data.loc[q_min_data["variable3"].isna()]
+            q_max_data = q_max_data.loc[q_max_data["variable3"].isna()]
+        
+        q_min_coef = float(q_min_data["coefs"].values[0])
+        q_max_coef = float(q_max_data["coefs"].values[0])
+        q_min_intercept = float(q_min_data["intercept"].values[0])
+        q_max_intercept = float(q_max_data["intercept"].values[0])
+    
+        # Create the regression line points
+        x = linspace(np.nanmin(meteo_df['$Q_{mean}$'].values), np.nanmax(meteo_df['$Q_{mean}$'].values), 100)
+        y_q_min = q_min_coef * x + q_min_intercept
+        y_q_max = q_max_coef * x + q_max_intercept
 
-    q_min_data = regressions_df.loc[regressions_df["variable2"] == "$Q_{min}$"]
-    q_max_data = regressions_df.loc[regressions_df["variable2"] == "$Q_{max}$"]
-
-    q_min_coef = q_min_data["coefs"].values[0]
-    q_max_coef = q_max_data["coefs"].values[0]
-    q_min_intercept = q_min_data["intercept"].values[0]
-    q_max_intercept = q_max_data["intercept"].values[0]
-
-    # Create the regression line points
-    x = linspace(np.nanmin(meteo_df['$Q_{mean}$'].values), np.nanmax(meteo_df['$Q_{mean}$'].values), 100)
-    y_q_min = q_min_coef * x + q_min_intercept
-    y_q_max = q_max_coef * x + q_max_intercept
-
-    # Plot the regression lines
-    axes.plot(x, y_q_min, '-', label='$Q_{min} regression line$', color='orange')
-    axes.plot(x, y_q_max, '-', label='$Q_{max} regression line$', color='red')
+        # Plot the regression lines
+        axes.plot(x, y_q_min, '-', label='$Q_{min} regression line$', color='orange')
+        axes.plot(x, y_q_max, '-', label='$Q_{max} regression line$', color='red')
 
     #axes[0].text(-0.45, .5, label, fontsize=10, horizontalalignment='center',
     #                verticalalignment='center', transform=axes[0].transAxes)
