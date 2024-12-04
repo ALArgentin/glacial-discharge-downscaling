@@ -1,8 +1,125 @@
 import csv
+import numpy as np
+import pandas as pd
+import rpy2.robjects as ro
 
+from rpy2.robjects import pandas2ri
+from rpy2.robjects.packages import importr
+from rpy2.robjects import Formula
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 
+
+def gam_on_discharge(meteo_df, catchment, file_paths):
+    
+    # Activate pandas to R DataFrame conversion
+    pandas2ri.activate()
+    
+    # Import necessary R packages
+    base = importr("base")
+    dplyr = importr("dplyr")
+    mgcv = importr("mgcv")
+    tidyverse = importr("tidyverse")
+    
+    sel_data = meteo_df.copy()
+    
+    # Inspect data
+    print(sel_data.head(10))
+    
+    print(sel_data.columns)
+    
+    # Define the mapping of old column names to new column names
+    column_mapping = {
+        'Glacier area percentage': 'GAP',
+        'Precipitation': 'P',
+        'Temperature': 'Tp',
+        'Radiation': 'R',
+        'Snow melt': 'SM',
+        'Ice melt': 'IM',
+        'All snow': 'AS',
+        'Glacier snow': 'GS',
+        '$a$': 'a',
+        '$b$': 'b',
+        '$M$': 'M',
+        '$Q_{min}$': 'Qmin',
+        '$Q_{max}$': 'Qmax',
+        '$Q_{mean}$': 'Qmean',
+        'Entropy': 'E',
+        '$c$': 'c',
+        'Weather': 'W'
+    }
+    
+    # Rename columns in the DataFrame
+    sel_data.rename(columns=column_mapping, inplace=True)
+    
+    # Remove weird values
+    sel_data = sel_data[(sel_data["a"] > -50) & (sel_data["a"] < 50)]
+    sel_data = sel_data[(sel_data["b"] > -10) & (sel_data["b"] < 5)]
+    
+     # Add the 'Weather' column using pandas' `np.select`
+    conditions = [
+        (sel_data["c"] > -0.25) & (sel_data["a"] >= 6),
+        (sel_data["c"] > -0.25) & (sel_data["a"] < 6),
+        (sel_data["c"] < -0.25) & (sel_data["a"] >= 6),
+        (sel_data["c"] < -0.25) & (sel_data["a"] < 6),
+    ]
+    
+    choices = ["1", "2", "3", "4"]
+    
+    sel_data["Weather"] = np.select(conditions, choices, default=np.nan)
+    
+    date1 = '2011-07-01'
+    date2 = '2014-07-07'
+    dates1 = sel_data.index.get_level_values(0)
+    print("D1", sel_data["Qmean"][(dates1 >= date1) & (dates1 < date2)])
+    print("D1", sel_data["Qmin"][(dates1 >= date1) & (dates1 < date2)])
+    print("D1", sel_data["Qmax"][(dates1 >= date1) & (dates1 < date2)])
+    
+    # Load data into R environment (assume sel_data is already available in Python)
+    # We will convert pandas dataframe to R dataframe and work with it in R
+    sel_data_r = pandas2ri.py2rpy(sel_data)
+    sel_data_r = pandas2ri.py2rpy(sel_data[(dates1 >= date1) & (dates1 < date2)])
+        
+    # Assign `sel_data_r` to R's environment
+    ro.r.assign("sel_data_r", sel_data_r)
+
+    for str in ["min", "max"]:
+        
+        if str == "min":
+            gam_diagnostics = file_paths.gam_min_diagnostics
+            gam_summary = file_paths.gam_min_summary
+            gam_model = file_paths.gam_min_model
+        elif str == "max":
+            gam_diagnostics = file_paths.gam_max_diagnostics
+            gam_summary = file_paths.gam_max_summary
+            gam_model = file_paths.gam_max_model
+        
+        # Fit the GAM model using mgcv package (adjust this model to your use case)
+        ro.r('set.seed(2)')
+        ro.r(f"""
+        res <- gam(Q{str} ~ s(Qmean, k=10) + s(Tp, k=10) + s(R, k=10) + s(P, k=10) + s(GAP, k=3)
+                  + s(IM, k=10) + s(SM, k=10) + s(AS, k=10) + s(GS, k=10), 
+                  data=sel_data_r, method="REML", family=tw(link="identity"))
+        """)
+        
+        # Run the gam.check() function on the fitted model
+        ro.r(f'pdf("{gam_diagnostics}")')  # Start saving to PDF
+        ro.r('gam.check(res)')  # Generate diagnostic plots
+        ro.r('dev.off()')  # Close the PDF device to save the file
+        
+        # Redirect the R console output to a text file
+        ro.r(f'''
+        sink("{gam_summary}")
+        cat("summary(res):\n")
+        print(summary(res))
+        cat("\n\n")  # Add spacing
+        cat("gam.check(res):\n")
+        gam.check(res)
+        sink()  # Stop redirection
+        ''')
+        
+        # Save the fitted model to a file
+        ro.r(f'saveRDS(res, file="{gam_model}")')
 
 def linear_regression_with_scikit(q_mean, q_min_max):
     """
@@ -44,17 +161,13 @@ def linear_regression_with_scikit(q_mean, q_min_max):
     intercept = regr.intercept_
     print(f"Linear regression with score = {score}, coefficients = {coefs} and intercept = {intercept}.")
 
-        # Make predictions using the testing set and compute the fit
-    mse_test = mean_squared_error(q_min_max, regr.predict(q_mean))
-    mse_regr = mean_squared_error(q_min_max, regr.predict(q_mean))
-    r2_test = r2_score(q_min_max, regr.predict(q_mean))
-    r2_regr = r2_score(q_min_max, regr.predict(q_mean))
-    print("Mean squared error: %.2f" % mse_test)
-    print("Mean squared error: %.2f" % mse_regr)
-    print("Coefficient of determination R$^2$: %.2f" % r2_test)
-    print("Coefficient of determination R$^2$: %.2f" % r2_regr)
+    # Make predictions using the testing set and compute the fit
+    mse = mean_squared_error(q_min_max, regr.predict(q_mean))
+    r2 = r2_score(q_min_max, regr.predict(q_mean))
+    print("Mean squared error: %.2f" % mse)
+    print("Coefficient of determination R$^2$: %.2f" % r2)
 
-    return regr, score, coefs, intercept, mse_test, mse_regr, r2_test, r2_regr
+    return regr, score, coefs, intercept, mse, r2
 
 def extract_discharge_relation_to_daily_mean(meteo_df, filename, criteria):
     """
@@ -105,10 +218,10 @@ def extract_discharge_relation_to_daily_mean(meteo_df, filename, criteria):
     ###### Linear regression
     # Linear regression between Qmean and Qmin.
     regr1, score1, coefs1, intercept1, \
-    mse_test1, mse_regr1, r2_test1, r2_regr1 = linear_regression_with_scikit(q_mean, q_min)
+    mse1, r21 = linear_regression_with_scikit(q_mean, q_min)
     # Linear regression between Qmean and Qmax.
     regr2, score2, coefs2, intercept2, \
-    mse_test2, mse_regr2, r2_test2, r2_regr2 = linear_regression_with_scikit(q_mean, q_max)
+    mse2, r22 = linear_regression_with_scikit(q_mean, q_max)
 
     ###### MULTIPLE Linear regression
     print(f"Multiple regression with {criteria}... among {meteo_df.columns}.")
@@ -117,17 +230,17 @@ def extract_discharge_relation_to_daily_mean(meteo_df, filename, criteria):
 
     # Multiple linear regression between Qmean and Qmin, with additionnal info.
     regr3, score3, coefs3, intercept3, \
-    mse_test3, mse_regr3, r2_test3, r2_regr3 = linear_regression_with_scikit(q_mean, q_min)
+    mse3, r23 = linear_regression_with_scikit(q_mean, q_min)
     # Multiple linear regression between Qmean and Qmax, with additionnal info.
     regr4, score4, coefs4, intercept4, \
-    mse_test4, mse_regr4, r2_test4, r2_regr4 = linear_regression_with_scikit(q_mean, q_max)
+    mse4, r24 = linear_regression_with_scikit(q_mean, q_max)
 
     with open(filename, 'w') as out:
         csv_out = csv.writer(out)
-        csv_out.writerow(['variable1', 'variable2', 'score', 'coefs', 'intercept', 'MSE', 'R2', 'MSE', 'R2'])
-        csv_out.writerow(["$Q_{mean}$", "$Q_{min}$", score1, coefs1[0], intercept1, mse_regr1, r2_regr1, mse_test1, r2_test1])
-        csv_out.writerow(["$Q_{mean}$", "$Q_{max}$", score2, coefs2[0], intercept2, mse_regr2, r2_regr2, mse_test2, r2_test2])
+        csv_out.writerow(['variable1', 'variable2', 'score', 'coefs', 'intercept', 'MSE', 'R2', 'variable3'])
+        csv_out.writerow(["$Q_{mean}$", "$Q_{min}$", score1, coefs1[0], intercept1, mse1, r21, 'None'])
+        csv_out.writerow(["$Q_{mean}$", "$Q_{max}$", score2, coefs2[0], intercept2, mse2, r22, 'None'])
         csv_out.writerow(['variable1', 'variable2', 'score', 'coefs', 'intercept', 'MSE', 'R2', 'MSE', 'R2', 'variable3'])
-        csv_out.writerow(["$Q_{mean}$", "$Q_{min}$", score1, coefs1[0], intercept1, mse_regr1, r2_regr1, mse_test1, r2_test1, criteria])
-        csv_out.writerow(["$Q_{mean}$", "$Q_{max}$", score2, coefs2[0], intercept2, mse_regr2, r2_regr2, mse_test2, r2_test2, criteria])
+        csv_out.writerow(["$Q_{mean}$", "$Q_{min}$", score3, coefs3[0], intercept3, mse3, r23, criteria])
+        csv_out.writerow(["$Q_{mean}$", "$Q_{max}$", score4, coefs4[0], intercept4, mse4, r24, criteria])
     return regr1, regr2, regr3, regr4
