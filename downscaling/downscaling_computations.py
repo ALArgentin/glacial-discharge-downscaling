@@ -6,7 +6,7 @@ import distribution_fitting as dsf
 import extract_hydrological_variables as fc
 import numpy as np
 import pandas as pd
-import pome_fitting as fit
+from pome_fitting import pome
 import rpy2.robjects as ro
 import scipy.stats as stats
 from preprocessing import get_statistics, retrieve_subdaily_discharge
@@ -49,7 +49,7 @@ class DownscalingModel():
         ## and the calibration results.
         self.meteo_df = None
 
-    def simulate_a_flow_duration_curve(self, params, q_min, q_max, M, day_meteo):
+    def simulate_a_flow_duration_curve(self, params, q_min, q_max, M, day_meteo, pomme):
         """
         Simulate a flow duration curve based on the given parameter sets
         and minimum and maximum discharges.
@@ -82,20 +82,19 @@ class DownscalingModel():
                 var1 = day_meteo['Temperature'].values[0]
                 var2 = day_meteo['Precipitation'].values[0]
                 var3 = day_meteo['Radiation'].values[0]
-                #a1, a2, a3, b1, b2, b3, c1, c2, c3 = params
-                a1, b1, c1 = params
-                a = a1 * var1 #+ a2 * var2 + a3 * var3
-                b = b1 * var1 #+ b2 * var2 + b3 * var3
-                c = c1 * var1 #+ c2 * var2 + c3 * var3
+                a1, a2, a3, b1, b2, b3, c1, c2, c3 = params
+                a = a1 * var1 + a2 * var2 + a3 * var3
+                b = b1 * var1 + b2 * var2 + b3 * var3
+                c = c1 * var1 + c2 * var2 + c3 * var3
     
         # Generate fitted curve for plotting
         t_fit = np.linspace(0, 1, self.subdaily_intervals)
         if self.function == "Singh2014":
-            y_fit = fit.discharge_time_equation_Singh2014(t_fit, a, b, q_min, q_max, M)
+            y_fit = pomme.discharge_time_equation_Singh2014(t_fit, a, b, q_min, q_max, M)
         elif self.function == "Sigmoid_d":
-            y_fit = fit.discharge_time_equation_Sigmoid_d(t_fit, a, b, c, d, q_min, q_max, M)
-        elif self.function == "Sigmoid" or function == "Sigmoid_ext_var":
-            y_fit = fit.discharge_time_equation_Sigmoid(t_fit, a, b, c, q_min, q_max, M)
+            y_fit = pomme.discharge_time_equation_Sigmoid_d(t_fit, a, b, c, d, q_min, q_max, M)
+        elif self.function == "Sigmoid" or self.function == "Sigmoid_ext_var":
+            y_fit = pomme.discharge_time_equation_Sigmoid(t_fit, a, b, c, q_min, q_max, M)
     
         # Return the simulated discharge
         return y_fit
@@ -159,16 +158,19 @@ class DownscalingModel():
         time_df = df
         if self.function == "Sigmoid_ext_var":
             time_df = meteo_df
+            
+        pomme = pome()
     
         date_range = np.unique(fc.select_months(time_df, self.months).index.strftime('%Y-%m-%d'))
         for i, day in enumerate(date_range):
+            print(day)
             if day.endswith("-06-01"):
                 print(f"Processing year {day}: {(datetime.now() - start_t).seconds} s spent")
             observed_subdaily_discharge = retrieve_subdaily_discharge(df, day=day)
             day_meteo = meteo_df[meteo_df_str_index == day]
     
             # CAREFUL, in this function I switched X_data and y_data in the sigmoid functions.... Consequently also switched for the rest.
-            params, cov, x_data1, y_data1, x_fit1, y_fit1, r21 = fit.fit_a_and_b_to_discharge_probability_curve(
+            params, cov, x_data1, y_data1, x_fit1, y_fit1, r21 = pomme.fit_a_and_b_to_discharge_probability_curve(
                 observed_subdaily_discharge, day_meteo, function=self.function)
             x_data1_df.loc[day] = x_data1
             y_data1_df.loc[day] = y_data1
@@ -176,14 +178,14 @@ class DownscalingModel():
             if len(y_fit1) != 0: y_fit1_df.loc[day] = y_fit1
             if r21: r21_df.loc[day] = r21
             q_min, q_mean, q_max = get_statistics(observed_subdaily_discharge)
-            M, var, x_data2, y_data2, t_fit2, y_fit2, r22 = fit.fit_m_to_flow_duration_curve(
+            M, var, x_data2, y_data2, t_fit2, y_fit2, r22 = pomme.fit_m_to_flow_duration_curve(
                 observed_subdaily_discharge, params, q_min, q_max, day_meteo, function=self.function)
             x_data2_df.loc[day] = x_data2
             y_data2_df.loc[day] = y_data2
             if len(t_fit2) != 0: t_fit2_df.loc[day] = t_fit2
             if len(y_fit2) != 0: y_fit2_df.loc[day] = y_fit2
             if r22: r22_df.loc[day] = r22
-            simulated_subdaily_distribution = self.simulate_a_flow_duration_curve(params, q_min, q_max, M, day_meteo)
+            simulated_subdaily_distribution = self.simulate_a_flow_duration_curve(params, q_min, q_max, M, day_meteo, pomme)
     
             # Extract the values of the params
             if np.isnan(params).any():
@@ -199,11 +201,10 @@ class DownscalingModel():
                     var1 = day_meteo['Temperature'].values[0]
                     var2 = day_meteo['Precipitation'].values[0]
                     var3 = day_meteo['Radiation'].values[0]
-                    #a1, a2, a3, b1, b2, b3, c1, c2, c3 = params
-                    a1, b1, c1 = params
-                    a = a1 * var1 #+ a2 * var2 + a3 * var3
-                    b = b1 * var1 #+ b2 * var2 + b3 * var3
-                    c = c1 * var1 #+ c2 * var2 + c3 * var3
+                    a1, a2, a3, b1, b2, b3, c1, c2, c3 = params
+                    a = a1 * var1 + a2 * var2 + a3 * var3
+                    b = b1 * var1 + b2 * var2 + b3 * var3
+                    c = c1 * var1 + c2 * var2 + c3 * var3
     
             if self.function == "Sigmoid_d":
                 c_array.append(c)
@@ -213,14 +214,14 @@ class DownscalingModel():
             elif self.function == "Sigmoid_ext_var":
                 c_array.append(c)
                 a1_array.append(a1)
-                #a2_array.append(a2)
-                #a3_array.append(a3)
+                a2_array.append(a2)
+                a3_array.append(a3)
                 b1_array.append(b1)
-                #b2_array.append(b2)
-                #b3_array.append(b3)
+                b2_array.append(b2)
+                b3_array.append(b3)
                 c1_array.append(c1)
-                #c2_array.append(c2)
-                #c3_array.append(c3)
+                c2_array.append(c2)
+                c3_array.append(c3)
             h = stats.entropy(observed_subdaily_discharge)[0]
     
             a_array.append(a)
