@@ -138,13 +138,18 @@ if True:
     plot_q_mean_q_min_q_max_regressions(meteo_df, linear_regr_filename,
                                         f'{figures}Qmean_Qmin_Qmax_regressions_{catchment}_{months_str}')
     
-    plot_FDCs_together(fp.observed_15min_discharge_FDCs, fp.observed_daily_discharge_FDCs, f'{figures}FDCs_{function}_{catchment}_{months_str}.pdf')
-    plot_downscaling_improvement(fp.observed_15min_discharge_FDCs, fp.observed_daily_discharge_FDCs,
-                                 fp.simulated_daily_discharge_FDCs, fp.weather_observed_daily_discharge_FDCs,
+    plot_FDCs_together(fp.observed_15min_discharge_FDCs, fp.observed_daily_discharge_FDCs, 
+                       f'{figures}FDCs_{function}_{catchment}_{months_str}.pdf')
+    plot_downscaling_improvement(fp.observed_15min_discharge_FDCs, 
+                                 fp.observed_daily_discharge_FDCs, 
+                                 fp.weather_observed_daily_discharge_FDCs,
                                  fp.multi_weather_observed_daily_discharge_FDCs,
-                                 fp.all_bootstrapped_discharge_FDCs, fp.downscaling_metrics, catchment,
+                                 fp.simulated_daily_discharge_FDCs,
+                                 fp.all_bootstrapped_discharge_FDCs, 
+                                 fp.downscaling_metrics, catchment,
                                  f'{figures}Improvement_FDCs_{function}_{catchment}_{months_str}.png')
-    plot_sampled_distributions(meteo_df, fp.results, function, f'{figures}all_sampled_histograms_{function}_{catchment}_{months_str}')
+    plot_sampled_distributions(meteo_df, fp.results, function, 
+                               f'{figures}all_sampled_histograms_{function}_{catchment}_{months_str}')
     print(nboä)
     
     variables = {"$a$": np.array([5, 10, 25, 50, 75]), "$b$": np.array([0, 0.4, 0.8, 1.2, 1.8]),

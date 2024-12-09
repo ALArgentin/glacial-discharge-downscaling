@@ -1183,57 +1183,61 @@ def plot_yearly_discharges(area_file, catchments, path, filename):
     axes.legend(frameon=False, loc='upper left', bbox_to_anchor=(1.01, 1))
     plt.savefig(filename + ".pdf", format="pdf", bbox_inches='tight', dpi=100)
 
-def plot_downscaling_improvement(observed_FDCs, simulated_FDCs_from_observed_means,
-                                 simulated_FDCs_from_hydrobricks_means,
-                                 simulated_FDCs_from_observed_means_weather,
-                                 simulated_FDCs_from_observed_means_weather_multiregr,
-                                 bootstrapped_series, metrics, catchment,
-                                 filename):
+def plot_downscaling_improvement(observed_15min_discharge_FDCs, 
+                                 observed_daily_discharge_FDCs,
+                                 weather_observed_daily_discharge_FDCs,
+                                 multi_weather_observed_daily_discharge_FDCs,
+                                 simulated_daily_discharge_FDCs,
+                                 all_bootstrapped_discharge_FDCs, downscaling_metrics, 
+                                 catchment, filename):
 
     # Loading FDCs
-    FDCs1_df = pd.read_csv(observed_FDCs, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
-    FDCs2_df = pd.read_csv(simulated_FDCs_from_observed_means, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
-    FDCs3_df = pd.read_csv(simulated_FDCs_from_hydrobricks_means, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
-    FDCs4_df = pd.read_csv(bootstrapped_series, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
-    FDCs5_df = pd.read_csv(simulated_FDCs_from_observed_means_weather, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
-    FDCs6_df = pd.read_csv(simulated_FDCs_from_observed_means_weather_multiregr, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
-    metrics_df = pd.read_csv(metrics, index_col=1)
+    FDCs_ref_df = pd.read_csv(observed_15min_discharge_FDCs, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
+    FDCs1_df = pd.read_csv(observed_daily_discharge_FDCs, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
+    FDCs2_df = pd.read_csv(weather_observed_daily_discharge_FDCs, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
+    FDCs3_df = pd.read_csv(multi_weather_observed_daily_discharge_FDCs, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
+    FDCs4_df = pd.read_csv(simulated_daily_discharge_FDCs, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
+    FDCs5_df = pd.read_csv(all_bootstrapped_discharge_FDCs, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
+    metrics_df = pd.read_csv(downscaling_metrics, index_col=1)
+    
+    print(simulated_daily_discharge_FDCs, FDCs4_df)
+    print(bou)
 
     # Select the dates
     date1 = '2011-07-01'
     date2 = '2011-07-07'
+    dates_ref = FDCs_ref_df.index.get_level_values(0)
     dates1 = FDCs1_df.index.get_level_values(0)
     dates2 = FDCs2_df.index.get_level_values(0)
     dates3 = FDCs3_df.index.get_level_values(0)
     dates4 = FDCs4_df.index.get_level_values(0)
     dates5 = FDCs5_df.index.get_level_values(0)
-    dates6 = FDCs6_df.index.get_level_values(0)
+    FDCs_ref_df = FDCs_ref_df[(dates_ref >= date1) & (dates_ref < date2)]
     FDCs1_df = FDCs1_df[(dates1 >= date1) & (dates1 < date2)]
     FDCs2_df = FDCs2_df[(dates2 >= date1) & (dates2 < date2)]
     FDCs3_df = FDCs3_df[(dates3 >= date1) & (dates3 < date2)]
     FDCs4_df = FDCs4_df[(dates4 >= date1) & (dates4 < date2)]
     FDCs5_df = FDCs5_df[(dates5 >= date1) & (dates5 < date2)]
-    FDCs6_df = FDCs6_df[(dates6 >= date1) & (dates6 < date2)]
 
     # Start the plotting
     fig, axes = plt.subplots(5, 1, figsize=(10, 7), sharex=True)
     [ax.spines['right'].set_visible(False) for ax in axes.flatten()]
     [ax.spines['top'].set_visible(False) for ax in axes.flatten()]
     fig.subplots_adjust(wspace=0.3)
-    axes[0].plot(FDCs1_df.index, FDCs1_df.values, '.', label='15-min measured discharge', color='orange')
-    axes[1].plot(FDCs1_df.index, FDCs1_df.values, '.', label='15-min measured discharge', color='orange')
-    axes[2].plot(FDCs1_df.index, FDCs1_df.values, '.', label='15-min measured discharge', color='orange')
-    axes[3].plot(FDCs1_df.index, FDCs1_df.values, '.', label='15-min measured discharge', color='orange')
-    axes[4].plot(FDCs1_df.index, FDCs1_df.values, '.', label='15-min measured discharge', color='orange', zorder=10)
+    axes[0].plot(FDCs_ref_df.index, FDCs_ref_df.values, '.', label='15-min measured discharge', color='orange')
+    axes[1].plot(FDCs_ref_df.index, FDCs_ref_df.values, '.', label='15-min measured discharge', color='orange')
+    axes[2].plot(FDCs_ref_df.index, FDCs_ref_df.values, '.', label='15-min measured discharge', color='orange')
+    axes[3].plot(FDCs_ref_df.index, FDCs_ref_df.values, '.', label='15-min measured discharge', color='orange')
+    axes[4].plot(FDCs_ref_df.index, FDCs_ref_df.values, '.', label='15-min measured discharge', color='orange', zorder=10)
 
-    axes[0].plot(FDCs2_df.index, FDCs2_df.values, '.', label='Daily mean of measured discharge', color='teal')
-    axes[1].plot(FDCs5_df.index, FDCs5_df.values, '.', label='Daily mean measured with weather constraint', color='teal')
-    axes[2].plot(FDCs6_df.index, FDCs6_df.values, '.', label='Daily mean measured with weather and multiregr', color='teal')
-    axes[3].plot(FDCs3_df.index, FDCs3_df.values, '.', label='Simulated daily mean discharge', color='teal')
+    axes[0].plot(FDCs1_df.index, FDCs1_df.values, '.', label='Daily mean of measured discharge', color='teal')
+    axes[1].plot(FDCs2_df.index, FDCs2_df.values, '.', label='Daily mean measured with weather constraint', color='teal')
+    axes[2].plot(FDCs3_df.index, FDCs3_df.values, '.', label='Daily mean measured with weather and multiregr', color='teal')
+    axes[3].plot(FDCs4_df.index, FDCs4_df.values, '.', label='Simulated daily mean discharge', color='teal')
 
     for i in range(99):
-        axes[4].plot(FDCs4_df.index, FDCs4_df[str(i)].values, '.', color='teal', markeredgewidth=0.0, alpha=0.2)
-    axes[4].plot(FDCs4_df.index, FDCs4_df[str(99)].values, '.', color='teal', markeredgewidth=0.0, alpha=0.2,
+        axes[4].plot(FDCs5_df.index, FDCs5_df[str(i)].values, '.', color='teal', markeredgewidth=0.0, alpha=0.2)
+    axes[4].plot(FDCs5_df.index, FDCs5_df[str(99)].values, '.', color='teal', markeredgewidth=0.0, alpha=0.2,
                  label="Bootstrapping of observed 15 min FDCs")
 
     axes[0].text(0.92, 0.9, f"NSE: {metrics_df['odd_nses'].loc[catchment]:.2f}\nKGE: {metrics_df['odd_kges'].loc[catchment]:.2f}", fontsize=10, horizontalalignment='center',
@@ -1265,11 +1269,11 @@ def plot_downscaling_improvement(observed_FDCs, simulated_FDCs_from_observed_mea
                  verticalalignment='center', transform=axes[4].transAxes)
 
     plt.xlabel('Days')
-    axes[2].set_ylabel('Discharge')
+    axes[2].set_ylabel('Discharge [m³/s]')
     axes[4].xaxis.set_minor_locator(dates.HourLocator())
     axes[4].xaxis.set_minor_formatter(dates.DateFormatter(''))
     axes[4].xaxis.set_major_locator(dates.DayLocator())
-    axes[4].xaxis.set_major_formatter(dates.DateFormatter('%d/%m'))
+    axes[4].xaxis.set_major_formatter(dates.DateFormatter('%d/%m/%y'))
     plt.savefig(filename, format="png", bbox_inches='tight', dpi=100)
 
 def Mutzner2015_plot(subdaily_discharge, months, filename):
