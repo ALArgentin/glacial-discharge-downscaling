@@ -105,6 +105,9 @@ if True:
     figures = f"{path}OutputFigures/"
     
     catchments = ['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'] # Ordered by area.
+    
+    plot_Qmin_qmax_figure(f'{figures}Qmin_Qmax_figure_{months_str}', catchments, path, months_str, pdfs=True, function="Sigmoid")
+    
     plot_yearly_discharges('Arolla_15min_discharge_all_corrected_', catchments, path, f'{figures}Arolla_yearly_discharges')
     plot_yearly_discharges('Ferpecle_discharge_all_corrected_', ['BR', 'BL', 'RR', 'MA', 'RO'], path, f'{figures}Ferpecle_yearly_discharges')
     plot_yearly_discharges('Mattertal_discharge_all_corrected_', ['AR', 'FU', 'TR'], path, f'{figures}Mattertal_yearly_discharges')
@@ -116,13 +119,13 @@ if True:
     
     ##################################### Arolla ##############################################################
     
-    catchment = "BI"
-    fp = FilePaths(path, "Arolla", catchment, months, function)
-    radiation = False
-    
-    ###########################################################################################################
-    
-    meteo_df = pd.read_csv(fp.dataframe_filename, index_col=0)
+        
+    ################################## Discharge variability plot #############################################
+    meteo_station = "/home/anne-laure/Documents/Datasets/IDAWEB_MeteoSwiss/Temperature/"
+    plot_discharge_variability(['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'], months_str, function, meteo_station,
+                               f"{figures}dicharge_variability_{function}_{months_str}")
+    plot_discharge_variability(['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'], months_str, function, meteo_station,
+                               f"{figures}dicharge_variability_{function}_{months_str}", yearly=False)
     
     # Drop rows with too high or low a, b, c values to get more readable plots
     meteo_df.drop(meteo_df[meteo_df["$a$"] < -50].index, inplace=True)
@@ -130,48 +133,62 @@ if True:
     meteo_df.drop(meteo_df[meteo_df["$b$"] < -10].index, inplace=True)
     meteo_df.drop(meteo_df[meteo_df["$b$"] > 10].index, inplace=True)
     
+        
+        ################################################# Other plot #############################################
+        linear_regr_filename = f"{fp.results}linear_regr_{months_str}.csv"
+        influences = ['Precipitation', 'Temperature', 'Snow melt', 'Ice melt', 'All snow',
+                      'Glacier snow', '$a$', '$b$', '$c$', '$M$', '$Q_{min}$', '$Q_{max}$', '$Q_{mean}$',
+                      'Entropy', 'Day of the year', 'Glacier area percentage', 'Radiation']
+        for influence in influences:
+            plot_q_mean_q_min_q_max_regressions(meteo_df, linear_regr_filename, 
+                                                f'{figures}Qmean_Qmin_Qmax_regressions_{catchment}_{months_str}',
+                                                influence_label=influence)
+        
+        plot_FDCs_together(fp.observed_15min_discharge_FDCs, fp.FDCs_qmean_observed_regr, 
+                           f'{figures}FDCs_{function}_{catchment}_{months_str}.pdf')
+        plot_downscaling_improvement(fp.observed_15min_discharge_FDCs, 
+                                     fp.FDCs_qmean_observed_regr, 'Measured $Q_{mean}$', 'or_',
+                                     fp.FDCs_qmean_observed_regr_weather, 'Measured $Q_{mean}$ with weather constraint', 'orw',
+                                     fp.FDCs_qmean_observed_multiregr_weather, 'Measured $Q_{mean}$ with weather and multiregr', 'omw',
+                                     fp.FDCs_qmean_simulated_regr, 'Simulated $Q_{mean}$', 'sr_',
+                                     fp.all_bootstrapped_discharge_FDCs, 'refs',
+                                     fp.downscaling_metrics, catchment,
+                                     f'{figures}Improvement_FDCs_{function}_{catchment}_{months_str}.png')
+        plot_downscaling_improvement(fp.observed_15min_discharge_FDCs, 
+                                     fp.FDCs_qmean_observed_gam, 'Measured $Q_{mean}$', 'og_',
+                                     fp.FDCs_qmean_observed_gam_weather, 'Measured $Q_{mean}$ with weather constraint', 'ogw',
+                                     fp.FDCs_qmean_simulated_gam, 'Simulated $Q_{mean}$', 'sg_',
+                                     fp.FDCs_qmean_simulated_gam_weather, 'Simulated $Q_{mean}$ with weather constraint', 'sgw',
+                                     fp.all_bootstrapped_discharge_FDCs, 'refs',
+                                     fp.downscaling_metrics, catchment,
+                                     f'{figures}Improvement_FDCs_{function}_{catchment}_{months_str}_GAMs.png')
+    catchment = "BI"
+    fp = FilePaths(path, "Arolla", catchment, months, function)
     
-    linear_regr_filename = f"{fp.results}linear_regr_{months_str}.csv"
-    plot_q_mean_q_min_q_max_regressions(meteo_df, linear_regr_filename,
-                                        f'{figures}Qmean_Qmin_Qmax_regressions_{catchment}_{months_str}')
-    
-    plot_FDCs_together(fp.observed_15min_discharge_FDCs, fp.observed_daily_discharge_FDCs, 
-                       f'{figures}FDCs_{function}_{catchment}_{months_str}.pdf')
-    plot_downscaling_improvement(fp.observed_15min_discharge_FDCs, 
-                                 fp.observed_daily_discharge_FDCs, 
-                                 fp.weather_observed_daily_discharge_FDCs,
-                                 fp.multi_weather_observed_daily_discharge_FDCs,
-                                 fp.simulated_daily_discharge_FDCs,
-                                 fp.all_bootstrapped_discharge_FDCs, 
-                                 fp.downscaling_metrics, catchment,
-                                 f'{figures}Improvement_FDCs_{function}_{catchment}_{months_str}.png')
     plot_sampled_distributions(meteo_df, fp.results, function, 
                                f'{figures}all_sampled_histograms_{function}_{catchment}_{months_str}')
-    print(nboä)
     
     variables = {"$a$": np.array([5, 10, 25, 50, 75]), "$b$": np.array([0, 0.4, 0.8, 1.2, 1.8]),
                  "$c$": np.linspace(-1, 1, 5),
                  "$M$": np.linspace(0.1, 5.1, 5),
-                 "$Q_{min}$": np.linspace(0, 3, 5), "$Q_{max}$": np.linspace(2, 10, 5)}
+                 #"$Q_{min}$": np.linspace(0, 3, 5), "$Q_{max}$": np.linspace(2, 10, 5)
+                 }
     plot_function_sensitivity(f'{figures}function_sensitivity_high_threshold_{function}_{catchment}_{months_str}.pdf',
                               variables, function="Sigmoid")
     variables = {"$a$": np.array([0, -1.8, -5, -15, -25]), "$b$": np.array([0, -0.1, -0.2, -0.4, -0.8]), #np.linspace(-20, 0, 5)
                  "$c$": np.linspace(-2, -1, 5),
                  "$M$": np.linspace(-0.1, -5.1, 5),
-                 "$Q_{min}$": np.linspace(0, 3, 5), "$Q_{max}$": np.linspace(2, 10, 5)}
+                 #"$Q_{min}$": np.linspace(0, 3, 5), "$Q_{max}$": np.linspace(2, 10, 5)
+                 }
     plot_function_sensitivity(f'{figures}function_sensitivity_low_threshold_{function}_{catchment}_{months_str}.pdf',
                               variables, function="Sigmoid")
-    
-    ################################## Discharge variability plot #############################################
-    plot_discharge_variability(['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU'], months_str, function,
-                               f"{figures}dicharge_variability_{function}_{catchment}_{months_str}.pdf")
     
     #################################### Pairplots
     pairplot(meteo_df, f"{figures}pairplot_{function}_{catchment}_{months_str}.pdf")
     
     retrieve_subdaily_discharge(fp.subdaily_discharge, figures=figures)
-    figure3(fp.subdaily_discharge, fp.results, months_str, figures=figures)
-    figure4(fp.subdaily_discharge, fp.results, months_str, figures=figures)
+    figure3(fp.subdaily_discharge, fp, figures=figures)
+    figure4(fp.subdaily_discharge, fp, figures=figures)
     
     x_data1_df = pd.read_csv(fp.x_data1_filename)
     y_data1_df = pd.read_csv(fp.y_data1_filename)
