@@ -80,8 +80,8 @@ def get_KDE_model(meteo_df, variable, weather=False):
         meteo_df["Weather"] = 'None'
         meteo_df.loc[(meteo_df["Temperature"] <= 0), "Weather"] = 'Freezing'
         meteo_df.loc[(meteo_df["Temperature"] > 0), "Weather"] = 'Melting'
-        meteo_df.loc[(meteo_df["Precipitation"] > 0) & (meteo_df["Temperature"] > 0), "Weather"] = 'Raining'
-        meteo_df.loc[(meteo_df["Precipitation"] > 0) & (meteo_df["Temperature"] <= 0), "Weather"] = 'Snowing'
+        meteo_df.loc[(meteo_df["Precipitation"] > 0.1) & (meteo_df["Temperature"] > 0), "Weather"] = 'Raining'
+        meteo_df.loc[(meteo_df["Precipitation"] > 0.1) & (meteo_df["Temperature"] <= 0), "Weather"] = 'Snowing'
 
         kdes = []
         for state in weather_list:
