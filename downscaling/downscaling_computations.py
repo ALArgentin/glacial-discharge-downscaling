@@ -314,8 +314,16 @@ class DownscalingModel():
         }
         sel_data.rename(columns=column_mapping, inplace=True)
         
+        # Ensure the DataFrames have the same time index format
+        sel_data = sel_data.loc[df.index.min():df.index.max()]  # Crop to the same time range as df
+        
+        # Replace the 'Qmean' column with the content of qmean_distrib
+        sel_data['Qmean'] = qmean_distrib['$Q_{mean}$'].values
+        
         # Activate pandas to R DataFrame conversion
         pandas2ri.activate()
+        
+        ro.r(f"set.seed(2)")  # Set seed in R for reproducibility
         
         # Load the fitted model for minimum discharge and use it for predictions
         fitted_model = ro.r(f'readRDS("{self.file_paths.gam_min_model}")')
