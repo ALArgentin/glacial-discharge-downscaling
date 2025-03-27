@@ -186,10 +186,13 @@ class DownscalingModel():
             if len(y_fit2) != 0: y_fit2_df.loc[day] = y_fit2
             if r22: r22_df.loc[day] = r22
             simulated_subdaily_distribution = self.simulate_a_flow_duration_curve(params, q_min, q_max, M, day_meteo, pomme)
-    
+            
+            # Check for monotonicity of functions, as the flow duration curves should be strictly decreasing
             # Extract the values of the params
-            if np.isnan(params).any():
+            monotonic_decreasing = np.all(np.diff(y_fit2) <= 0)
+            if not monotonic_decreasing or np.isnan(params).any():
                 a = b = c = d = np.nan
+                a1 = a2 = a3 = b1 = b2 = b3 = c1 = c2 = c3 = np.nan
             else:
                 if self.function == "Singh2014":
                     a, b = params
