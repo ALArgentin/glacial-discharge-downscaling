@@ -27,15 +27,13 @@ if False:
             meteo_df = get_meteorological_hydrological_data(fp, months, melt_model='degree_day', with_debris=False)
             model.calibration_workflow(meteo_df)
         else:
-            model.load_calibrated_results()
-    
+            model.load_calibrated_constrained_results()
+            
         # Convert the simulated discharge of Hydrobricks from [mm/day] to [m3/s].
         convert_to_hydrobricks_units(fp.simulated_daily_discharge, fp.watershed_path,
                                      fp.simulated_daily_discharge_m3s, catchment)
     
         fm.mann_kendall_tests(model.meteo_df, fp)
-        
-        model.discard_calibrated_parameter_outliers()
     
         dsf.find_and_save_best_pdf_functions(model.meteo_df, fp.functions_filename, function)
         weather_kde_dict = dsf.KDE_computations(model.meteo_df, function, weather=True)
@@ -127,12 +125,12 @@ if True:
     plot_discharge_variability(['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'], months_str, function, meteo_station,
                                f"{figures}dicharge_variability_{function}_{months_str}", yearly=False)
     
-    # Drop rows with too high or low a, b, c values to get more readable plots
-    meteo_df.drop(meteo_df[meteo_df["$a$"] < -50].index, inplace=True)
-    meteo_df.drop(meteo_df[meteo_df["$a$"] > 150].index, inplace=True)
-    meteo_df.drop(meteo_df[meteo_df["$b$"] < -10].index, inplace=True)
-    meteo_df.drop(meteo_df[meteo_df["$b$"] > 10].index, inplace=True)
-    
+    for catchment in catchments:
+        fp = FilePaths(path, "Arolla", catchment, months, function)
+        
+        ##########################################################################################################
+        
+        meteo_df = pd.read_csv(fp.dataframe_constrained_filename, index_col=0)
         
         ################################################# Other plot #############################################
         linear_regr_filename = f"{fp.results}linear_regr_{months_str}.csv"

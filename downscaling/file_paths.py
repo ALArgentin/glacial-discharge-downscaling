@@ -10,6 +10,7 @@ class FilePaths:
         self.forcing_file = None
         self.results_file = None
         self.dataframe_filename = None
+        self.dataframe_constrained_filename = None
         
         self.watershed_path = None
         self.area_txt = None
@@ -93,6 +94,7 @@ class FilePaths:
         self.forcing_file = f"{self.results}/forcing.nc"
         self.results_file = f"{self.results}results.nc"
         self.dataframe_filename = f"{self.results}meteo_df_{function}_{self.months_str}.csv"
+        self.dataframe_constrained_filename = f"{self.results}meteo_df_{function}_{self.months_str}_constrained.csv"
         
         self.functions_filename = f"{self.results}pdf_functions_{function}_{self.months_str}.csv"
         self.linear_regr_filename = f"{self.results}linear_regr_{self.months_str}.csv"

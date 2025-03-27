@@ -270,6 +270,9 @@ class DownscalingModel():
         meteo_df["Day of the year"] = daily_summer_df.index.dayofyear
         meteo_df.to_csv(self.file_paths.dataframe_filename)
         self.meteo_df = meteo_df
+        
+        model.discard_calibrated_parameter_outliers()
+        self.meteo_df.to_csv(self.file_paths.dataframe_constrained_filename)
     
         x_data1_df.to_csv(self.file_paths.x_data1_filename)
         y_data1_df.to_csv(self.file_paths.y_data1_filename)
@@ -529,18 +532,27 @@ class DownscalingModel():
     
         return FDCs_df
     
-    def load_calibrated_results(self):
-        self.meteo_df = pd.read_csv(self.file_paths.dataframe_filename, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d')
+    def load_calibrated_constrained_results(self):
+        self.meteo_df = pd.read_csv(self.file_paths.dataframe_constrained_filename, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d')
         self.meteo_df = self.meteo_df.drop(self.meteo_df.columns[0], axis=1)
         self.meteo_df.index = pd.to_datetime(self.meteo_df.index)
 
-    def discard_calibrated_parameter_outliers(self):    
-        # Put rows with too high or low a, b, c values to NaNs
-        # to get more readable plots & KDEs.
-        print("SHOULD I TRY INSTEAD TO REDEFINE a & b ACCORDING TO THE SENSITIVITY ANALYSIS?")
-        self.meteo_df.loc[self.meteo_df["$a$"] < -50, :] = np.nan
-        self.meteo_df.loc[self.meteo_df["$a$"] > 150, :] = np.nan
-        self.meteo_df.loc[self.meteo_df["$b$"] < -10, :] = np.nan
-        self.meteo_df.loc[self.meteo_df["$b$"] > 10, :] = np.nan
-
-
+    def discard_calibrated_parameter_outliers(self):
+        if self.function == "Singh2014":
+            labels = ["$a$", "$b$", "$M$"]
+        elif self.function == "Sigmoid_d":
+            labels = ["$a$", "$b$", "$c$", "$d$", "$M$"]
+        elif self.function == "Sigmoid":
+            labels = ["$a$", "$b$", "$c$", "$M$"]
+            
+        # Remove rows with too high or low a, b, c values
+        # to get rid of outliers.
+        final_mask = pd.Series(True, index=self.meteo_df.index)  # Initialize with correct shape
+        for label in labels:
+            q1 = self.meteo_df[label].quantile(.05)  # Select the first quantile
+            q3 = self.meteo_df[label].quantile(.95)  # Select the third quantile
+            mask = self.meteo_df[label].between(q1, q3, inclusive='both')  # Create a mask inbeetween q1 & q3
+            final_mask = final_mask & mask  # Adding current mask to the ones already computed
+        self.meteo_df = self.meteo_df.loc[final_mask]  # Filtering the initial dataframe with the final mask
+        self.meteo_df.index = pd.to_datetime(self.meteo_df.index)
+        
