@@ -126,7 +126,6 @@ def KDE_computations(meteo_df, function, weather=False):
 
 def sample_weather_distribs(var, kde_dict, state_of_days):
     distrib = []
-    print("Length state_of_days", len(state_of_days))
     for state in state_of_days:
         if state != 'None':
             key = var + '_' + state
