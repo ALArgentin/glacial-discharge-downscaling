@@ -48,11 +48,19 @@ if False:
         mmf.gam_on_discharge(model.meteo_df, catchment, fp, '2009-06-01', '2014-09-30', excluded_periods) # BUGS for VU!!!
         qmin_regr, qmax_regr, qmin_multi_regr, qmax_multi_regr = mmf.extract_discharge_relation_to_daily_mean(model.meteo_df, fp.linear_regr_filename, criteria=['Ice melt', 'Snow melt'])
         
-        observed_daily_discharge_FDCs_df = model.apply_downscaling_to_daily_discharge(kde_dict, qmin_regr, qmax_regr, fp.observed_daily_discharge_FDCs)
-        weather_observed_daily_discharge_FDCs_df = model.apply_downscaling_to_daily_discharge(weather_kde_dict, qmin_regr, qmax_regr, fp.weather_observed_daily_discharge_FDCs)
-        multi_weather_observed_daily_discharge_FDCs_df = model.apply_downscaling_to_daily_discharge(weather_kde_dict, qmin_multi_regr, qmax_multi_regr, fp.multi_weather_observed_daily_discharge_FDCs,
+        # Downscale a daily discharge in different ways
+        # First, with the regressions
+        FDCs_qmean_observed_regr_df = model.apply_downscaling_to_daily_discharge(kde_dict, qmin_regr, qmax_regr, fp.FDCs_qmean_observed_regr)
+        FDCs_qmean_observed_regr_weather_df = model.apply_downscaling_to_daily_discharge(weather_kde_dict, qmin_regr, qmax_regr, fp.FDCs_qmean_observed_regr_weather)
+        FDCs_qmean_observed_multiregr_weather_df = model.apply_downscaling_to_daily_discharge(weather_kde_dict, qmin_multi_regr, qmax_multi_regr, fp.FDCs_qmean_observed_multiregr_weather,
                                                                                                  criteria=['Ice melt', 'Snow melt'])
-        simulated_daily_discharge_FDCs_df = model.apply_downscaling_to_daily_discharge(kde_dict, qmin_regr, qmax_regr, fp.simulated_daily_discharge_FDCs, modeled=True)
+        FDCs_qmean_simulated_regr_df = model.apply_downscaling_to_daily_discharge(kde_dict, qmin_regr, qmax_regr, fp.FDCs_qmean_simulated_regr, modeled=True)
+        FDCs_qmean_simulated_regr_weather_df = model.apply_downscaling_to_daily_discharge(weather_kde_dict, qmin_regr, qmax_regr, fp.FDCs_qmean_simulated_regr_weather, modeled=True)
+        # Second, with the GAMs
+        FDCs_qmean_observed_gam_df = model.apply_downscaling_to_daily_discharge(kde_dict, None, None, fp.FDCs_qmean_observed_gam)
+        FDCs_qmean_observed_gam_weather_df = model.apply_downscaling_to_daily_discharge(weather_kde_dict, None, None, fp.FDCs_qmean_observed_gam_weather)
+        FDCs_qmean_simulated_gam_df = model.apply_downscaling_to_daily_discharge(kde_dict, None, None, fp.FDCs_qmean_simulated_gam, modeled=True)
+        FDCs_qmean_simulated_gam_weather_df = model.apply_downscaling_to_daily_discharge(weather_kde_dict, None, None, fp.FDCs_qmean_simulated_gam_weather, modeled=True)
     
         observed_FDCs_df, cleaned_observed_FDCs_df, all_bootstrapped_FDCs_dfs = bootstrapping_observed_FDCs(fp.subdaily_discharge, fp.observed_15min_discharge_FDCs, months)
         all_bootstrapped_FDCs_dfs.to_csv(fp.all_bootstrapped_discharge_FDCs)
