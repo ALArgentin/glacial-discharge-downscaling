@@ -130,7 +130,7 @@ def sample_weather_distribs(var, kde_dict, state_of_days):
     for state in state_of_days:
         if state != 'None':
             key = var + '_' + state
-            value = kde_dict[key].resample(1, seed=42)[0]
+            value = kde_dict[key].resample(1, seed=42)[0][0]
         else:
             value = np.nan
         distrib.append(value)
