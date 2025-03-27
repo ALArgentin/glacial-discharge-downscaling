@@ -486,17 +486,19 @@ class DownscalingModel():
         #    if not np.isnan(q_max) and not np.isnan(q_min):
         #        assert q_max >= q_min
     
+            pomme = pome()
             t_fit = np.linspace(0, 1, self.subdaily_intervals)
             if self.function == "Singh2014":
-                y_fit = fit.discharge_time_equation_Singh2014(t_fit, a, b, q_min, q_max, M)
+                y_fit = pomme.discharge_time_equation_Singh2014(t_fit, a, b, q_min, q_max, M)
             elif self.function == "Sigmoid_d":
-                y_fit = fit.discharge_time_equation_Sigmoid_d(t_fit, a, b, c, d, q_min, q_max, M)
+                y_fit = pomme.discharge_time_equation_Sigmoid_d(t_fit, a, b, c, d, q_min, q_max, M)
             elif self.function == "Sigmoid":
-                y_fit = fit.discharge_time_equation_Sigmoid(t_fit, a, b, c, q_min, q_max, M)
+                y_fit = pomme.discharge_time_equation_Sigmoid(t_fit, a, b, c, q_min, q_max, M)
     
             print("Min, Max, ", np.min(y_fit), np.max(y_fit))
     
             all_y_fits.extend(y_fit)
+            
     
         # Recreate the 15-min simulation intervals for the FDCs
         number_of_days = len(df.index)
@@ -506,7 +508,7 @@ class DownscalingModel():
         FDCs_time = [day + np.timedelta64(i * 15, 'm') for day in df.index for i in range(self.subdaily_intervals)]
         FDCs_df = pd.DataFrame({'Date': FDCs_time, 'Discharge': all_y_fits})
         FDCs_df = FDCs_df.set_index('Date')
-    
+        
         if debug:
             # Asserts (working but super long)
             if self.months == [6, 7, 8, 9]:
