@@ -10,7 +10,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 
 
-def gam_on_discharge(meteo_df, catchment, file_paths):
+def gam_on_discharge(meteo_df, catchment, file_paths,
+                     date_begin = '2009-06-01', date_end = '2014-09-30',
+                     excluded_periods = []):
     
     # Activate pandas to R DataFrame conversion
     pandas2ri.activate()
@@ -25,7 +27,6 @@ def gam_on_discharge(meteo_df, catchment, file_paths):
     
     # Inspect data
     print(sel_data.head(10))
-    
     print(sel_data.columns)
     
     # Define the mapping of old column names to new column names
@@ -52,33 +53,16 @@ def gam_on_discharge(meteo_df, catchment, file_paths):
     # Rename columns in the DataFrame
     sel_data.rename(columns=column_mapping, inplace=True)
     
-    # Remove weird values
-    sel_data = sel_data[(sel_data["a"] > -50) & (sel_data["a"] < 50)]
-    sel_data = sel_data[(sel_data["b"] > -10) & (sel_data["b"] < 5)]
+    # If there are periods to be excluded (because they bug, for example):
+    for period in excluded_periods:
+        dates = sel_data.index.get_level_values(0)
+        sel_data = sel_data[(dates < period[0]) | (dates > period[1])]
     
-     # Add the 'Weather' column using pandas' `np.select`
-    conditions = [
-        (sel_data["c"] > -0.25) & (sel_data["a"] >= 6),
-        (sel_data["c"] > -0.25) & (sel_data["a"] < 6),
-        (sel_data["c"] < -0.25) & (sel_data["a"] >= 6),
-        (sel_data["c"] < -0.25) & (sel_data["a"] < 6),
-    ]
-    
-    choices = ["1", "2", "3", "4"]
-    
-    sel_data["Weather"] = np.select(conditions, choices, default=np.nan)
-    
-    date1 = '2011-07-01'
-    date2 = '2014-07-07'
-    dates1 = sel_data.index.get_level_values(0)
-    print("D1", sel_data["Qmean"][(dates1 >= date1) & (dates1 < date2)])
-    print("D1", sel_data["Qmin"][(dates1 >= date1) & (dates1 < date2)])
-    print("D1", sel_data["Qmax"][(dates1 >= date1) & (dates1 < date2)])
+    dates = sel_data.index.get_level_values(0)
     
     # Load data into R environment (assume sel_data is already available in Python)
     # We will convert pandas dataframe to R dataframe and work with it in R
-    sel_data_r = pandas2ri.py2rpy(sel_data)
-    sel_data_r = pandas2ri.py2rpy(sel_data[(dates1 >= date1) & (dates1 < date2)])
+    sel_data_r = pandas2ri.py2rpy(sel_data[(dates >= date_begin) & (dates < date_end)])
         
     # Assign `sel_data_r` to R's environment
     ro.r.assign("sel_data_r", sel_data_r)
@@ -99,7 +83,7 @@ def gam_on_discharge(meteo_df, catchment, file_paths):
         ro.r(f"""
         res <- gam(Q{str} ~ s(Qmean, k=10) + s(Tp, k=10) + s(R, k=10) + s(P, k=10) + s(GAP, k=3)
                   + s(IM, k=10) + s(SM, k=10) + s(AS, k=10) + s(GS, k=10), 
-                  data=sel_data_r, method="REML", family=tw(link="identity"))
+                  data=sel_data_r, method="REML", verbose = TRUE, family=tw(link="identity"))
         """)
         
         # Run the gam.check() function on the fitted model

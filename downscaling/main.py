@@ -42,6 +42,7 @@ if False:
         kde_dict = dsf.KDE_computations(model.meteo_df, function, weather=False)
         
         mmf.gam_on_discharge(model.meteo_df, catchment, fp)
+        mmf.gam_on_discharge(model.meteo_df, catchment, fp, '2009-06-01', '2014-09-30', excluded_periods) # BUGS for VU!!!
         qmin_regr, qmax_regr, qmin_multi_regr, qmax_multi_regr = mmf.extract_discharge_relation_to_daily_mean(model.meteo_df, fp.linear_regr_filename, criteria=['Ice melt', 'Snow melt'])
         
         observed_daily_discharge_FDCs_df = model.apply_downscaling_to_daily_discharge(kde_dict, qmin_regr, qmax_regr, fp.observed_daily_discharge_FDCs)
