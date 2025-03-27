@@ -47,43 +47,50 @@ def mann_kendall_tests(meteo_df, file_paths):
         trend, h, p, z, Tau, s, var_s, slope, intercept = mk.seasonal_test(meteo_df['$M$'].values, period=122)
         file.write(f"M, {trend}, {h}, {p}, {z}, {Tau}, {s}, {var_s}, {slope}, {intercept}\n")
 
-def compute_reference_metric(all_bootstrapped_FDCs_dfs, observed_FDCs_df, metric):
+def compute_reference_metric(all_bootstrapped_FDCs_dfs, observed_FDCs_df, metrics):
     """
-    Compute a reference for the provided metric (goodness of fit)
+    Compute a reference for the provided metrics (goodness of fit)
     by block bootstrapping the observed series n_evals times (100 times by default),
-    evaluating the bootstrapped series using the provided metric and computing
+    evaluating the bootstrapped series using the provided metrics and computing
     the mean of the results.
 
     @param all_bootstrapped_FDCs_dfs (dataframe)
         All bootstrapped flow duration curves as different columns.
     @param observed_FDCs_df (dataframe)
         The observed flow duration curves.
-    @param metric (str)
-        The abbreviation of the function as defined in HydroErr
+    @param metrics (list of str)
+        List of the abbreviations of the desired functions as defined in HydroErr
         (https://hydroerr.readthedocs.io/en/stable/list_of_metrics.html)
         Examples: nse, kge_2012, ...
 
-    @return The mean value of n_evals realization of the selected metric.
+    @return List of the mean value of n_evals realization of the selected metrics.
     """
-    print(f"Compute reference {metric}...")
+    print(f"Compute reference {metrics}...")
     # The length of the dataframe is the number of bootstrapped timeseries.
     n_evals = len(all_bootstrapped_FDCs_dfs.columns)
+    n_metrics = len(metrics)
 
     # Evaluate all the bootstrapped discharge timeseries.
-    metrics = np.empty(n_evals)
+    metrics_values = np.empty((n_evals, n_metrics))
     i = 0
     while i < n_evals:
-        value = hb.evaluate(all_bootstrapped_FDCs_dfs[str(i)].values, observed_FDCs_df['Discharge'].values, metric)
-        metrics[i] = value
+        for j, metric in enumerate(metrics):
+            if metric == 'norm_max_dist':
+                range = np.nanmax(observed_FDCs_df['Discharge'].values) - np.nanmin(observed_FDCs_df['Discharge'].values)
+                value = np.nanmax(all_bootstrapped_FDCs_dfs[str(i)].values - observed_FDCs_df['Discharge'].values) / range
+            else:
+                value = hb.evaluate(all_bootstrapped_FDCs_dfs[str(i)].values, observed_FDCs_df['Discharge'].values, metric)
+            metrics_values[i, j] = value
         i += 1
 
-    ref_metric = np.mean(metrics)
+    ref_metrics = np.mean(metrics_values, axis=0)
+    print(ref_metrics)
 
-    return ref_metric
+    return ref_metrics
 
-def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metric):
+def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metrics):
     """
-    Compute the hydrological metric indicated as input on the two discharge datasets
+    Compute the hydrological metrics indicated as input on the two discharge datasets
     inputted.
 
     @param simulated_FDCs_df (dataframe)
@@ -92,14 +99,14 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metric):
         The observed flow duration curves, already preprocessed.
     @param months (list)
         The months to which the analysis is restricted.
-    @param metric (str)
-        The abbreviation of the function as defined in HydroErr
+    @param metrics (list of str)
+        List of the abbreviations of the desired functions as defined in HydroErr
         (https://hydroerr.readthedocs.io/en/stable/list_of_metrics.html)
         Examples: nse, kge_2012, ...
 
-    @return (float) The value of the computed metric.
+    @return (float) The value of the computed metrics.
     """
-    print(f"Compute {metric}...")
+    print(f"Compute {metrics}...")
 
     # Formatting
     simulated_FDCs_df.reset_index(inplace=True)
@@ -121,9 +128,15 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metric):
     simulated_FDCs_df = simulated_FDCs_df.loc[intersection_dates]
     cleaned_observed_FDCs_df = cleaned_observed_FDCs_df.loc[intersection_dates]
 
-    metric = hb.evaluate(simulated_FDCs_df['Discharge'].values, cleaned_observed_FDCs_df['Discharge'].values, metric)
+    metric_values = np.empty(len(metrics))
+    for i, metric in enumerate(metrics):
+        if metric == 'norm_max_dist':
+            range = np.nanmax(cleaned_observed_FDCs_df['Discharge'].values) - np.nanmin(cleaned_observed_FDCs_df['Discharge'].values)
+            metric_values[i] = np.nanmax(simulated_FDCs_df['Discharge'].values - cleaned_observed_FDCs_df['Discharge'].values) / range
+        else:
+            metric_values[i] = hb.evaluate(simulated_FDCs_df['Discharge'].values, cleaned_observed_FDCs_df['Discharge'].values, metric)
 
-    return metric
+    return metric_values
 
 
 def compute_r2(y_data, y_fit):
