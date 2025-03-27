@@ -389,6 +389,12 @@ class DownscalingModel():
         nb_days = len(df)
         if len(kde_dict) > 7: # With weather
             state_of_days = self.meteo_df["Weather"].values
+            if simulated:
+                sel_data = self.meteo_df.copy()
+                # Ensure the DataFrames have the same time index format
+                sel_data = sel_data.loc[df.index.min():df.index.max()]  # Crop to the same time range as df
+                state_of_days = sel_data["Weather"].values
+
             a_distrib = dsf.sample_weather_distribs("$a$", kde_dict, state_of_days)
             b_distrib = dsf.sample_weather_distribs("$b$", kde_dict, state_of_days)
             c_distrib = dsf.sample_weather_distribs("$c$", kde_dict, state_of_days)
@@ -403,8 +409,7 @@ class DownscalingModel():
 
     def apply_downscaling_to_daily_discharge(self, kde_dict,
                                              qmin_regr, qmax_regr, FDC_output_file, 
-                                             modeled=False, criteria=None, debug=False,
-                                             min_max_gam=True):
+                                             modeled=False, criteria=None, debug=False):
         """
         Applies downscaling to daily discharge data to generate sub-daily discharge 
         flow durations.
@@ -418,8 +423,10 @@ class DownscalingModel():
             downscaling parameters (e.g., `$a$`, `$b$`, `$c$`, `$M$`).
         @param qmin_regr (sklearn model)
             Regression model for estimating the minimum daily discharge.
+            If None, uses GAM to downscale the minimum AND maximum daily discharge.
         @param qmax_regr (sklearn model)
             Regression model for estimating the maximum daily discharge.
+            If None, uses GAM to downscale the minimum AND maximum daily discharge.
         @param FDC_output_file (str)
             Path to the output CSV file where the generated flow duration curves 
             (FDCs) will be saved.
@@ -431,9 +438,6 @@ class DownscalingModel():
         @param debug (bool, optional)
             If True, enables additional assertions and debugging outputs. Default 
             is False.
-        @param min_max_gam (bool, optional)
-            If True, uses GAM to downscale the minimum and maximum daily discharge. 
-            If False, uses linear regression. Default is True.
     
         @return (pandas.DataFrame)
             A DataFrame containing the downscaled sub-daily discharge data with 
@@ -466,12 +470,12 @@ class DownscalingModel():
                     assert len(df.loc[df.index.strftime('%Y') == str(y)]) == 122
         np.set_printoptions(threshold=sys.maxsize)
     
-        if min_max_gam:
-            qmin_distrib, qmax_distrib = self.apply_gam_min_max_downscaling(df)
-        else:
+        if qmin_regr and qmax_regr:
             qmin_distrib, qmax_distrib = self.apply_linear_min_max_downscaling(df, qmin_regr, qmax_regr, criteria)
-        a_distrib, b_distrib, c_distrib, M_distrib = self.select_other_parameters(df, kde_dict)
-    
+        else:
+            qmin_distrib, qmax_distrib = self.apply_gam_min_max_downscaling(df)
+        a_distrib, b_distrib, c_distrib, M_distrib = self.sample_other_parameters_independently(df, kde_dict, modeled)
+        
         # Generate fitted curve for plotting
         all_y_fits = []
         for i, day in enumerate(df.index):
