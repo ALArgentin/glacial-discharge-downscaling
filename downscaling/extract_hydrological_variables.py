@@ -37,7 +37,7 @@ def select_months(df, months):
     @return (dataframe) A dataframe containing data from the specified
         months.
     """
-    df = df[df.index.month.isin(months)]
+    df = df[df.index.month.isin(months)].copy()
     return df
 
 def extract_snow_water_eq(results_file, component):

@@ -72,17 +72,9 @@ def find_and_save_best_pdf_functions(meteo_df, filename, function):
         csv_out.writerow(["$Q_{max}$", Qmax_type, Qmax_params, Qmax_stats])
 
 
-def get_KDE_model(meteo_df, variable, weather=False):
+def get_KDE_model(meteo_df, variable, weather_list=None):
 
-    if weather:
-        weather_list = ['Freezing', 'Melting', 'Raining', 'Snowing']
-        # Categorize according to weather
-        meteo_df["Weather"] = 'None'
-        meteo_df.loc[(meteo_df["Temperature"] <= 0), "Weather"] = 'Freezing'
-        meteo_df.loc[(meteo_df["Temperature"] > 0), "Weather"] = 'Melting'
-        meteo_df.loc[(meteo_df["Precipitation"] > 0.1) & (meteo_df["Temperature"] > 0), "Weather"] = 'Raining'
-        meteo_df.loc[(meteo_df["Precipitation"] > 0.1) & (meteo_df["Temperature"] <= 0), "Weather"] = 'Snowing'
-
+    if weather_list:
         kdes = []
         for state in weather_list:
             state_data = meteo_df.loc[(meteo_df["Weather"] == state), variable].dropna().values
@@ -107,29 +99,51 @@ def add_to_kde_dict(kde_dict, kde, var, weather_list):
     else:
         kde_dict[var] = kde
 
-def KDE_computations(meteo_df, function, weather=False):
+def KDE_computations(meteo_df, function, weather_list):
 
     kde_dict = {}
 
     for var in ["$a$", "$b$", "$M$", "$Q_{min}$", "$Q_{max}$"]:
-        kde, weather_list = get_KDE_model(meteo_df, var, weather=weather)
+        kde, weather_list = get_KDE_model(meteo_df, var, weather_list)
         add_to_kde_dict(kde_dict, kde, var, weather_list)
 
     if function == "Sigmoid_d" or function == "Sigmoid":
-        kde, weather_list = get_KDE_model(meteo_df, "$c$", weather=weather)
+        kde, weather_list = get_KDE_model(meteo_df, "$c$", weather_list)
         add_to_kde_dict(kde_dict, kde, "$c$", weather_list)
     if function == "Sigmoid_d":
-        kde, weather_list = get_KDE_model(meteo_df, "$d$", weather=weather)
+        kde, weather_list = get_KDE_model(meteo_df, "$d$", weather_list)
         add_to_kde_dict(kde_dict, kde, "$d$", weather_list)
 
     return kde_dict
 
-def sample_weather_distribs(var, kde_dict, state_of_days):
+def sample_weather_distribs_dependently(meteo_df, state_of_days):
+    a_distrib = []
+    b_distrib = []
+    c_distrib = []
+    M_distrib = []
+    for state in state_of_days:
+        if state != 'None':
+            sampled_row = meteo_df[(meteo_df['Weather'] == state) & meteo_df['$a$'].notna()].sample(1, random_state=42)
+            a = sampled_row["$a$"].values
+            b = sampled_row["$b$"].values
+            c = sampled_row["$c$"].values
+            M = sampled_row["$M$"].values
+            assert not np.isnan(a)
+        else:
+            a, b, c, M =  np.nan, np.nan, np.nan, np.nan
+        a_distrib.append(a)
+        b_distrib.append(b)
+        c_distrib.append(c)
+        M_distrib.append(M)
+    return a_distrib, b_distrib, c_distrib, M_distrib
+
+def sample_weather_kde_independently(var, kde_dict, state_of_days):
     distrib = []
     for state in state_of_days:
         if state != 'None':
             key = var + '_' + state
             value = kde_dict[key].resample(1, seed=42)[0][0]
+            assert not np.isnan(value)
         else:
             value = np.nan
         distrib.append(value)

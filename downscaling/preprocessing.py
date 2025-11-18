@@ -140,7 +140,7 @@ def block_boostrapping(observed_FDCs_df, months, n_evals=100):
     observed_FDCs_df = select_months(observed_FDCs_df, months)
     observed_FDCs_df.reset_index(inplace=True)
 
-    observed_FDCs_df['year'] = pd.DatetimeIndex(observed_FDCs_df['date']).year
+    observed_FDCs_df.loc[:, 'year'] = pd.DatetimeIndex(observed_FDCs_df['date']).year
     observed_FDCs_df = observed_FDCs_df.set_index('date')
 
     # Get rid of the last day of bissextile years (leap years) to always have years of 365 days.

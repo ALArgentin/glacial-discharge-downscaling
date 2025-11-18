@@ -4,6 +4,7 @@ import pandas as pd
 import rpy2.robjects as ro
 
 from rpy2.robjects import pandas2ri
+from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
 from rpy2.robjects import Formula
 from sklearn.linear_model import LinearRegression
@@ -14,9 +15,6 @@ def gam_on_discharge(meteo_df, catchment, file_paths,
                      date_begin = '2009-06-01', date_end = '2014-09-30',
                      excluded_periods = []):
     
-    # Activate pandas to R DataFrame conversion
-    pandas2ri.activate()
-    
     # Import necessary R packages
     base = importr("base")
     dplyr = importr("dplyr")
@@ -26,8 +24,9 @@ def gam_on_discharge(meteo_df, catchment, file_paths,
     sel_data = meteo_df.copy()
     
     # Inspect data
-    print(sel_data.head(10))
-    print(sel_data.columns)
+    print("Inspecting the data:")
+    print("Head: ", sel_data.head(10))
+    print("Columns: ", sel_data.columns)
     
     # Define the mapping of old column names to new column names
     column_mapping = {
@@ -60,9 +59,11 @@ def gam_on_discharge(meteo_df, catchment, file_paths,
     
     dates = sel_data.index.get_level_values(0)
     
-    # Load data into R environment (assume sel_data is already available in Python)
-    # We will convert pandas dataframe to R dataframe and work with it in R
-    sel_data_r = pandas2ri.py2rpy(sel_data[(dates >= date_begin) & (dates < date_end)])
+    # Convert Pandas DataFrame to R DataFrame within a local conversion context
+    with localconverter(pandas2ri.converter):
+        # Load data into R environment (assume sel_data is already available in Python)
+        # We will convert pandas dataframe to R dataframe and work with it in R
+        sel_data_r = pandas2ri.py2rpy(sel_data[(dates >= date_begin) & (dates < date_end)])
         
     # Assign `sel_data_r` to R's environment
     ro.r.assign("sel_data_r", sel_data_r)

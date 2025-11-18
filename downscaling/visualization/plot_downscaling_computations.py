@@ -18,6 +18,8 @@ from scipy.optimize import curve_fit
 from scipy.stats import entropy
 from sklearn.metrics import r2_score
 from scipy.constants._constants import pt
+from datetime import datetime, timedelta
+from fit_metrics import compute_KolmogorovSmirnov, compute_Wasserstein, compute_r2
 
 
 def select_days(df, days):
@@ -195,8 +197,15 @@ def inside_hydrograph_plot(df, axes):
 
         axes[i].scatter(pd.to_datetime(observed_subdaily_discharge.iloc[:,0].values),
                         observed_subdaily_discharge.iloc[:,1] / np.nanmax(observed_subdaily_discharge.iloc[:,1]), label='Measured', s=2)
-        axes[i].text(.80, .1, day, fontsize=8, horizontalalignment='center',
-                     verticalalignment='center', transform=axes[i].transAxes)
+        if i == 0:
+            axes[i].text(.80, .1, day, fontsize=8, horizontalalignment='center',
+                        verticalalignment='center', transform=axes[i].transAxes)
+        elif i == 1:
+            axes[i].text(.30, .1, day, fontsize=8, horizontalalignment='center',
+                        verticalalignment='center', transform=axes[i].transAxes)
+        else:
+            axes[i].text(.30, .9, day, fontsize=8, horizontalalignment='center',
+                        verticalalignment='center', transform=axes[i].transAxes)
         axes[i].set_xticklabels([])
 
 def retrieve_subdaily_discharge(filename, figures=''):
@@ -232,7 +241,7 @@ def inside_function_fit_a_and_b_to_discharge_probability_curve(meteo_df, x_data_
     # Select the dates
     date1 = '2010-06-01'
     date2 = '2010-06-06'
-    meteo_df = meteo_df[(meteo_df['Date'] >= date1) & (meteo_df['Date'] <= date2)]
+    meteo_df = meteo_df[(meteo_df.index >= date1) & (meteo_df.index <= date2)]
     x_data_df = x_data_df[(x_data_df['Date'] >= date1) & (x_data_df['Date'] <= date2)]
     y_data_df = y_data_df[(y_data_df['Date'] >= date1) & (y_data_df['Date'] <= date2)]
     x_fit_df = x_fit_df[(x_fit_df['Date'] >= date1) & (x_fit_df['Date'] <= date2)]
@@ -262,8 +271,10 @@ def inside_function_fit_a_and_b_to_discharge_probability_curve(meteo_df, x_data_
         x_fit = x_fit_df.iloc[i].values[1:]
         y_fit = y_fit_df.iloc[i].values[1:]
         r2 = r2_df.iloc[i].values[1:]
-
-        if function == "Singh2014":
+        
+        if np.isnan(a.iloc[i]) or np.isnan(b.iloc[i]):
+            label = f"r$^2$ = {r2[0]:.2f}\nDiscarded\nsolution." 
+        elif function == "Singh2014":
             label = f"r$^2$ = {r2[0]:.2f}\na = {a.iloc[i]:.1f}\nb = {b.iloc[i]:.1f}"
             #label = f'Fitted Curve: 1 - {a.iloc[i]:.2f} * x^{b.iloc[i]:.2f}'
         elif function == "Sigmoid_d":
@@ -283,7 +294,7 @@ def inside_function_fit_a_and_b_to_discharge_probability_curve(meteo_df, x_data_
         # Plotting the observations and the fitted curve
         axes[i].set_xticklabels([])
         axes[i].scatter(x_data, y_data, label='Observations', s=2)
-        axes[i].plot(y_fit, x_fit, label='Fit', color='red')
+        axes[i].plot(y_fit, x_fit, label='Fitted curve', color='red')
         axes[i].text(.30, .1, day, fontsize=8, horizontalalignment='center',
                      verticalalignment='center', transform=axes[i].transAxes)
         axes[i].text(0.8, .7, label, fontsize=8, horizontalalignment='center',
@@ -294,7 +305,7 @@ def inside_fit_m_to_flow_duration_curve(meteo_df, x_data_df, y_data_df, x_fit_df
     # Select the dates
     date1 = '2010-06-01'
     date2 = '2010-06-06'
-    meteo_df = meteo_df[(meteo_df['Date'] >= date1) & (meteo_df['Date'] <= date2)]
+    meteo_df = meteo_df[(meteo_df.index >= date1) & (meteo_df.index <= date2)]
     x_data_df = x_data_df[(x_data_df['Date'] >= date1) & (x_data_df['Date'] <= date2)]
     y_data_df = y_data_df[(y_data_df['Date'] >= date1) & (y_data_df['Date'] <= date2)]
     x_fit_df = x_fit_df[(x_fit_df['Date'] >= date1) & (x_fit_df['Date'] <= date2)]
@@ -325,7 +336,9 @@ def inside_fit_m_to_flow_duration_curve(meteo_df, x_data_df, y_data_df, x_fit_df
         y_fit = y_fit_df.iloc[i].values[1:]
         r2 = r2_df.iloc[i].values[1:]
 
-        if function == "Singh2014":
+        if np.isnan(a.iloc[i]) or np.isnan(b.iloc[i]):
+            label = f"r$^2$ = {r2[0]:.2f}\nDiscarded\nsolution." 
+        elif function == "Singh2014":
             label = f"a = {a.iloc[i]:.1f}\nb = {b.iloc[i]:.1f}\nM = {M.iloc[i]:.1f}\nr$^2$ = {r2[0]:.2f}"
             #label = f'Fitted Curve: 1 - {a.iloc[i]:.2f} * x^{b.iloc[i]:.2f}'
         elif function == "Sigmoid_d":
@@ -339,13 +352,23 @@ def inside_fit_m_to_flow_duration_curve(meteo_df, x_data_df, y_data_df, x_fit_df
         # Plotting the original data and the fitted curve
         axes[i].set_xticklabels([])
         axes[i].scatter(x_data, y_data / np.nanmax(y_data), label='Observations', s=2)
-        axes[i].plot(t_fit, y_fit / np.nanmax(y_fit), label='Fit', color='red')
-        axes[i].text(.30, .1, day, fontsize=8, horizontalalignment='center',
-                     verticalalignment='center', transform=axes[i].transAxes)
-        axes[i].text(0.8, .7, label, fontsize=8, horizontalalignment='center',
-                     verticalalignment='center', transform=axes[i].transAxes)
+        axes[i].plot(t_fit, y_fit / np.nanmax(y_fit), label='Fitted curve', color='red')
+        if i == 3 or i == 4:
+            axes[i].text(.18, .16, day[:5] + "\n" + day[5:], fontsize=8, horizontalalignment='center',
+                        verticalalignment='center', transform=axes[i].transAxes)
+        else:
+            axes[i].text(.30, .1, day, fontsize=8, horizontalalignment='center',
+                        verticalalignment='center', transform=axes[i].transAxes)
+        if i == 1:
+            axes[i].text(0.8, .8, label[:-21], fontsize=8, horizontalalignment='center',
+                        verticalalignment='center', transform=axes[i].transAxes)
+            axes[i].text(0.25, .4, label[-21:], fontsize=8, horizontalalignment='center',
+                        verticalalignment='center', transform=axes[i].transAxes)
+        else:
+            axes[i].text(0.8, .7, label, fontsize=8, horizontalalignment='center',
+                        verticalalignment='center', transform=axes[i].transAxes)
 
-def figure3(filename, fp, figures=''):
+def figure3(path, area, catchment, months, function, figures=''):
 
     fig, axes = plt.subplots(6, 3, figsize=(7,8))
     [ax.spines['right'].set_visible(False) for ax in axes.flatten()]
@@ -353,14 +376,17 @@ def figure3(filename, fp, figures=''):
     fig.subplots_adjust(wspace=0.6)
     axes = axes.T
 
-    df = pd.read_csv(filename, header=0, na_values='', usecols=[0, 1],
+    function = "Sigmoid"
+    fp = FilePaths(path, area, catchment, months, function)
+    df = pd.read_csv(fp.subdaily_discharge, header=0, na_values='', usecols=[0, 1],
                      parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
     df.rename(columns={df.columns[1]: 'Discharge'}, inplace=True)
     df.index = pd.to_datetime(df.iloc[:,0].values, format='%Y-%m-%d').strftime('%Y-%m-%d')
     inside_hydrograph_plot(df, axes[0])
 
     function = "Singh2014"
-    meteo_df = pd.read_csv(fp.dataframe_constrained_filename, index_col=0)
+    fp = FilePaths(path, area, catchment, months, function)
+    meteo_df = pd.read_csv(fp.dataframe_filename, index_col=0)
     x_data_df = pd.read_csv(fp.x_data1_filename)
     y_data_df = pd.read_csv(fp.y_data1_filename)
     x_fit_df = pd.read_csv(fp.x_fit1_filename)
@@ -374,6 +400,7 @@ def figure3(filename, fp, figures=''):
     inside_function_fit_a_and_b_to_discharge_probability_curve(meteo_df, x_data_df, y_data_df, x_fit_df, y_fit_df, r2_df, function, axes[1])
 
     function = "Sigmoid"
+    fp = FilePaths(path, area, catchment, months, function)
     meteo_df = pd.read_csv(fp.dataframe_constrained_filename, index_col=0)
     x_data_df = pd.read_csv(fp.x_data1_filename)
     y_data_df = pd.read_csv(fp.y_data1_filename)
@@ -405,7 +432,89 @@ def figure3(filename, fp, figures=''):
     axes[1][-1].legend(loc='upper left', bbox_to_anchor=(-0.4, -0.45), frameon=False, ncols=2)
     fig.savefig(f'{figures}figure3.pdf', format="pdf", bbox_inches='tight', dpi=100)
 
-def figure4(filename, fp, figures=''):
+def wasserstein_distances(catchments, path, months, function, figures):
+    fig, axes = plt.subplots(1, 7, figsize=(20, 4))
+    plt.subplots_adjust(wspace=0.3)  # increase the horizontal space between subplots
+    for j, catchment in enumerate(catchments):
+        # Fetch the catchment data
+        fp = FilePaths(path, "Arolla", catchment, months, function)
+        r21_filename = f"{fp.results}KS_Sigmoid.txt"
+        r22_filename = f"{fp.results}KS_Sigmoid_bis.txt"
+
+        r21_df = pd.read_csv(r21_filename, index_col=0)
+        r22_df = pd.read_csv(r22_filename, index_col=0)
+
+        axes[j].plot(r21_df["Wasserstein_dist"].values, r22_df["Wasserstein_dist"].values, ".", color="darkblue")
+
+        total_nb = len(r21_df["Wasserstein_dist"].values)
+
+        axes[j].text(0.1, 0.8, catchment, fontsize=11, horizontalalignment='left',
+                verticalalignment='center', transform=axes[j].transAxes)
+        axes[j].text(0.1, 0.95, f"Nb of days: {total_nb:.0f}", fontsize=11, horizontalalignment='left',
+                verticalalignment='center', transform=axes[j].transAxes, color="darkblue")
+    axes[2].set_xlabel("Wasserstein distance of the first calibration step")
+    axes[0].set_ylabel("W distance of the second calibration step")
+    axes[-1].legend(frameon=False)
+    plt.savefig(f"{figures}Wasserstein.png", format="png", bbox_inches='tight', dpi=100)
+
+def KS_distances(catchments, path, months, function, figures):
+    fig, axes = plt.subplots(1, 7, figsize=(20, 4))
+    for j, catchment in enumerate(catchments):
+        # Fetch the catchment data
+        fp = FilePaths(path, "Arolla", catchment, months, function)
+        r21_filename = f"{fp.results}KS_Sigmoid.txt"
+        r22_filename = f"{fp.results}KS_Sigmoid_bis.txt"
+
+        r21_df = pd.read_csv(r21_filename, index_col=0)
+        r22_df = pd.read_csv(r22_filename, index_col=0)
+
+        axes[j].plot(r21_df["KS_stat"].values, r22_df["KS_stat"].values, ".", color="darkblue")
+        axes[j].plot(r21_df["KS_stat"].loc[(r21_df["KS_pvalue"].values >= 0.05) & (r22_df["KS_pvalue"].values >= 0.05)].values,
+                     r22_df["KS_stat"].loc[(r21_df["KS_pvalue"].values >= 0.05) & (r22_df["KS_pvalue"].values >= 0.05)].values, ".", color="red")
+
+        nb_good_fits = len(r21_df["KS_stat"].loc[(r21_df["KS_pvalue"].values >= 0.05) & (r22_df["KS_pvalue"].values >= 0.05)].values)
+        total_nb = len(r21_df["KS_stat"].values)
+
+        axes[j].text(0.1, 0.8, catchment, fontsize=11, horizontalalignment='left',
+                verticalalignment='center', transform=axes[j].transAxes)
+        axes[j].text(0.1, 0.95, f"Nb of days: {total_nb:.0f}", fontsize=11, horizontalalignment='left',
+                verticalalignment='center', transform=axes[j].transAxes, color="darkblue")
+        axes[j].text(0.1, 0.88, f"p-value $\geq$ 0.05: {nb_good_fits/total_nb*100:.0f}%", fontsize=11, horizontalalignment='left',
+                verticalalignment='center', transform=axes[j].transAxes, color="red")
+    axes[2].set_xlabel("Kolmogorov-Smirnov distance of the first calibration step")
+    axes[0].set_ylabel("KS distance of the second calibration step")
+    axes[-1].legend(frameon=False)
+    plt.savefig(f"{figures}KolmogorovSmirnov.png", format="png", bbox_inches='tight', dpi=100)
+
+def precipitation(file_path, figures):
+    df = pd.read_csv(file_path, sep=';')
+    df['time'] = pd.to_datetime(df['time'], format='%Y%m%d')
+    df['rka150d0'] = pd.to_numeric(df['rka150d0'], errors='coerce')
+    date1 = '2013-06-15'
+    date2 = '2013-07-15'
+    df_filtered = df[(df['time'] >= date1) & (df['time'] <= date2)]
+    plt.figure(figsize=(10, 3))
+    plt.plot(df_filtered['time'].values, df_filtered['rka150d0'].values, linestyle='-')
+    plt.xlabel('Date')
+    plt.ylabel('Precipitation (mm)')
+    plt.xticks(rotation=45)
+    plt.gca().xaxis.set_major_locator(dates.DayLocator())
+    plt.gca().xaxis.set_major_formatter(dates.DateFormatter('%Y-%m-%d'))
+    ax = plt.gca()
+    ax.set_ylim([-1, 45])
+    # Add arrows to indicate flushing events
+    arrow_dates = [datetime(2013, 6, 20), datetime(2013, 6, 21)]
+    arrow_values = [37, 12]  # position verticale de départ de la flèche
+    for d, v in zip(arrow_dates, arrow_values):
+        plt.annotate('', xy=(d, v), xytext=(d, v+7),
+                    arrowprops=dict(facecolor='black', shrink=40, width=2, headwidth=8))
+    plt.axvspan(datetime(2013, 6, 25) + timedelta(days=0.5), datetime(2013, 6, 30) + timedelta(days=1.5),
+                color='lightgray', alpha=0.5)
+    plt.tight_layout()
+    plt.show()
+    plt.savefig(f'{figures}figure3_precipitations.pdf', format="pdf", bbox_inches='tight', dpi=100)
+
+def figure4(path, area, catchment, months, function, figures=''):
 
     fig, axes = plt.subplots(6, 3, figsize=(7,8))
     [ax.spines['right'].set_visible(False) for ax in axes.flatten()]
@@ -413,14 +522,17 @@ def figure4(filename, fp, figures=''):
     fig.subplots_adjust(wspace=0.6)
     axes = axes.T
 
-    df = pd.read_csv(filename, header=0, na_values='', usecols=[0, 1],
+    function = "Sigmoid"
+    fp = FilePaths(path, area, catchment, months, function)
+    df = pd.read_csv(fp.subdaily_discharge, header=0, na_values='', usecols=[0, 1],
                      parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
     df.rename(columns={df.columns[1]: 'Discharge'}, inplace=True)
     df.index = pd.to_datetime(df.iloc[:,0].values, format='%Y-%m-%d').strftime('%Y-%m-%d')
     inside_hydrograph_plot(df, axes[0])
 
     function = "Singh2014"
-    meteo_df = pd.read_csv(fp.dataframe_constrained_filename, index_col=0)
+    fp = FilePaths(path, area, catchment, months, function)
+    meteo_df = pd.read_csv(fp.dataframe_filename, index_col=0)
     x_data2_df = pd.read_csv(fp.x_data2_filename)
     y_data2_df = pd.read_csv(fp.y_data2_filename)
     t_fit2_df = pd.read_csv(fp.t_fit2_filename)
@@ -434,6 +546,7 @@ def figure4(filename, fp, figures=''):
     inside_fit_m_to_flow_duration_curve(meteo_df, x_data2_df, y_data2_df, t_fit2_df, y_fit2_df, r22_df, function, axes[1])
 
     function = "Sigmoid"
+    fp = FilePaths(path, area, catchment, months, function)
     meteo_df = pd.read_csv(fp.dataframe_constrained_filename, index_col=0)
     x_data2_df = pd.read_csv(fp.x_data2_filename)
     y_data2_df = pd.read_csv(fp.y_data2_filename)
@@ -592,12 +705,6 @@ def plot_influence(x, y, x_label, y_label):
 
 def pairplot(meteo_df, output_figure):
 
-    meteo_df["Weather"] = 'None'
-    meteo_df.loc[(meteo_df["Temperature"] <= 0), "Weather"] = 'Freezing'
-    meteo_df.loc[(meteo_df["Temperature"] > 0), "Weather"] = 'Melting'
-    meteo_df.loc[(meteo_df["Precipitation"] > 0) & (meteo_df["Temperature"] > 0), "Weather"] = 'Raining'
-    meteo_df.loc[(meteo_df["Precipitation"] > 0) & (meteo_df["Temperature"] <= 0), "Weather"] = 'Snowing'
-
     grid = sns.pairplot(meteo_df, hue="Weather",
                         hue_order=['Raining', 'Melting', 'Snowing', 'Freezing'],
                         palette="Set2")
@@ -654,17 +761,16 @@ def plot_discharge_variability(catchments, months_str, function, meteo_station,
     max_range = 0
     yearly_meteo_df_list = []
     for i, catchment in enumerate(catchments):
-        results = f"/home/anne-laure/Documents/Datasets/Outputs/Arolla/{catchment}/"
+        results = f"/home/aargentin/Documents/Datasets/Outputs/Arolla/{catchment}/"
 
         dataframe_filename = f"{results}meteo_df_{function}_{months_str}_constrained.csv"
         meteo_df = pd.read_csv(dataframe_filename, index_col=0)
         meteo_df.index = pd.to_datetime(meteo_df.index)
         
-        meteo_df = filtering_data(meteo_df, ['$a$', '$b$', '$c$', '$M$'])
-        meteo_df.drop(['Date'], axis=1, inplace=True)
+        meteo_df.drop(['Weather'], axis=1, inplace=True)
 
         if yearly:
-            yearly_meteo_df = meteo_df.groupby(pd.Grouper(freq='Y')).mean()
+            yearly_meteo_df = meteo_df.groupby(pd.Grouper(freq='YE')).mean()
             # Because otherwise the data is located on the 31st of December and feels like it's shifted.
             yearly_meteo_df.index = yearly_meteo_df.index.map(lambda t: t.replace(month=1, day=1))
             yearly_meteo_df_list.append(yearly_meteo_df)
@@ -679,7 +785,7 @@ def plot_discharge_variability(catchments, months_str, function, meteo_station,
             max_range = max
 
     for i, (catchment, yearly_meteo_df) in enumerate(zip(catchments, yearly_meteo_df_list)):
-        results = f"/home/anne-laure/Documents/Datasets/Outputs/Arolla/{catchment}/"
+        results = f"/home/aargentin/Documents/Datasets/Outputs/Arolla/{catchment}/"
         
         # Fill the missing values with np.nans to avoid interpolation
         idx = pd.date_range(meteo_df.index.min(), meteo_df.index.max())
@@ -705,16 +811,17 @@ def plot_discharge_variability(catchments, months_str, function, meteo_station,
             axes[2].plot(x, five_year_moving_window['$c$'].values, color=cmap(normalize(i)), alpha=0.5, linewidth=4, label=catchment)
         axes[3].plot(x, yearly_meteo_df['$M$'].values, markers[i], color=cmap(normalize(i)), markersize=2)
         axes[3].plot(x, five_year_moving_window['$M$'].values, color=cmap(normalize(i)), alpha=0.5, linewidth=4)
-        axes[4].plot(x, yearly_meteo_df['$Q_{max}$'].values, label='$Q_{max}$', color='red')
-        axes[4].plot(x, yearly_meteo_df['$Q_{min}$'].values, label='$Q_{min}$', color='blue')
-        #axes[4].plot(x, (yearly_meteo_df['$Q_{max}$'].values - yearly_meteo_df['$Q_{min}$'].values) / max_range, color=cmap(normalize(i)), markersize=2)
+        #axes[4].plot(x, yearly_meteo_df['$Q_{max}$'].values, label='$Q_{max}$', color='red')
+        #axes[4].plot(x, yearly_meteo_df['$Q_{min}$'].values, label='$Q_{min}$', color='blue')
+        axes[4].plot(x, (yearly_meteo_df['$Q_{max}$'].values - yearly_meteo_df['$Q_{min}$'].values) / max_range, color=cmap(normalize(i)), markersize=2)
     
     if yearly:
-        pass
+        axes[2].set_ylim([-0.9, -0.2])
+        axes[3].set_ylim([-0.1, 1.0])
     else:
         axes[0].set_ylim([0, 50])
         axes[2].set_ylim([-1.75, 0.25])
-        axes[3].set_ylim([-1, 1.5])
+        axes[3].set_ylim([-2, 2.5])
         
     if False:
         
@@ -1023,7 +1130,7 @@ def plot_q_mean_q_min_q_max_regressions(meteo_df, regression_filename, filename,
                                         end_date='2014-12-31'):
     
 
-    meteo_df = meteo_df[(meteo_df['Date'] > start_date) & (meteo_df['Date'] <= end_date)]
+    meteo_df = meteo_df[(meteo_df.index > start_date) & (meteo_df.index <= end_date)]
     
     label = influence_label
     if test_influences:
@@ -1298,25 +1405,23 @@ def plot_comparison_of_catchments_distributions_depending_on_weather(catchments,
     [ax.spines['top'].set_visible(False) for ax in axes.flatten()]
     fig.subplots_adjust(wspace=0.2)
 
+    nbs_freezing = []
+    nbs_melting = []
+    nbs_raining = []
+    nbs_snowing = []
     for j, catchment in enumerate(catchments):
 
         # Fetch the catchment data
         results = f"{path}Outputs/Arolla/{catchment}/"
         dataframe_filename = f"{results}meteo_df_{function}_{months_str}_constrained.csv"
         meteo_df = pd.read_csv(dataframe_filename, index_col=0)
-
-        # Categorize according to weather
-        meteo_df["Weather"] = 'None'
-        meteo_df.loc[(meteo_df["Temperature"] <= 0), "Weather"] = 'Freezing'
-        meteo_df.loc[(meteo_df["Temperature"] > 0), "Weather"] = 'Melting'
-        meteo_df.loc[(meteo_df["Precipitation"] > 0) & (meteo_df["Temperature"] > 0), "Weather"] = 'Raining'
-        meteo_df.loc[(meteo_df["Precipitation"] > 0) & (meteo_df["Temperature"] <= 0), "Weather"] = 'Snowing'
         
         # Count the number of occurrences
-        nb_freezing = sum(meteo_df["Weather"] == 'Freezing')
-        nb_melting = sum(meteo_df["Weather"] == 'Melting')
-        nb_raining = sum(meteo_df["Weather"] == 'Raining')
-        nb_snowing = sum(meteo_df["Weather"] == 'Snowing')
+        without_nan_meteo_df = meteo_df[meteo_df["$a$"].notna()]
+        nbs_freezing.append(sum(without_nan_meteo_df["Weather"] == 'Freezing'))
+        nbs_melting.append(sum(without_nan_meteo_df["Weather"] == 'Melting'))
+        nbs_raining.append(sum(without_nan_meteo_df["Weather"] == 'Raining'))
+        nbs_snowing.append(sum(without_nan_meteo_df["Weather"] == 'Snowing'))
 
         ranges = [[-25, 75], [-0.5, 1], [-3, 1], [-7, 7]]
 
@@ -1361,8 +1466,8 @@ def plot_comparison_of_catchments_distributions_depending_on_weather(catchments,
         
     # Add a figure-wide legend below the plots
     fig.legend(
-        labels=[f"Freezing ({nb_freezing} days)", f"Melting ({nb_melting} days)", 
-                f"Raining ({nb_raining} days)", f"Snowing ({nb_snowing} days)"],
+        labels=[f"Freezing ({np.mean(nbs_freezing):.0f} days)", f"Melting ({np.mean(nbs_melting):.0f} days)", 
+                f"Raining ({np.mean(nbs_raining):.0f} days)", f"Snowing ({np.mean(nbs_snowing):.0f} days)"],
         loc="lower center",
         bbox_to_anchor=(0.5, 0.045),
         ncol=4,
@@ -1427,7 +1532,7 @@ def plot_yearly_discharges(area_file, catchments, path, filename):
         df.rename(columns={df.columns[0]: 'Discharge'}, inplace=True)
 
         # Compute discharges
-        yearly_df = df.groupby(pd.Grouper(freq='Y')).sum()
+        yearly_df = df.groupby(pd.Grouper(freq='YE')).sum()
         five_year_moving_window = yearly_df.rolling(window=5, center=True, closed='both').mean()
         norm_yearly_df = yearly_df / 70000
         norm_five_year_moving_window = five_year_moving_window / 70000
@@ -1463,9 +1568,6 @@ def plot_downscaling_improvement(FDCs,
         FDCs5_df = pd.read_csv(FDCs5, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
     metrics_df = pd.read_csv(downscaling_metrics, index_col=1)
     
-    #print(FDCs4, FDCs4_df)
-    #print(bou)
-
     # Select the dates
     date1 = '2011-07-01'
     date2 = '2011-07-07'
@@ -1520,21 +1622,21 @@ def plot_downscaling_improvement(FDCs,
         axes[-1].plot(bootstrap.index, bootstrap[str(i)].values / max, '.', color='black', markeredgewidth=0.0, alpha=0.2)
     line3, = axes[-1].plot(bootstrap.index, bootstrap[str(99)].values / max, '.', color='black', markeredgewidth=0.0, alpha=0.2)
 
-    axes[0].text(0.99, 0.75, f"nRMSE_R: {metrics_df[metric1][2]:.2f}\nnRMSE_IQR: {metrics_df[metric1][3]:.2f}\n"
-                 f"nDist_R: {metrics_df[metric1][5]:.2f}", fontsize=10, horizontalalignment='right',
+    axes[0].text(0.99, 0.75, f"nRMSE_R: {metrics_df[metric1].iloc[2]:.2f}\nnRMSE_IQR: {metrics_df[metric1].iloc[3]:.2f}\n"
+                 f"nDist_R: {metrics_df[metric1].iloc[5]:.2f}", fontsize=10, horizontalalignment='right',
                  verticalalignment='center', transform=axes[0].transAxes)
-    axes[1].text(0.99, 0.75, f"nRMSE_R: {metrics_df[metric2][2]:.2f}\nnRMSE_IQR: {metrics_df[metric2][3]:.2f}\n"
-                 f"nDist_R: {metrics_df[metric2][5]:.2f}", fontsize=10, horizontalalignment='right',
+    axes[1].text(0.99, 0.75, f"nRMSE_R: {metrics_df[metric2].iloc[2]:.2f}\nnRMSE_IQR: {metrics_df[metric2].iloc[3]:.2f}\n"
+                 f"nDist_R: {metrics_df[metric2].iloc[5]:.2f}", fontsize=10, horizontalalignment='right',
                  verticalalignment='center', transform=axes[1].transAxes)
-    axes[2].text(0.99, 0.75, f"nRMSE_R: {metrics_df[metric3][2]:.2f}\nnRMSE_IQR: {metrics_df[metric3][3]:.2f}\n"
-                 f"nDist_R: {metrics_df[metric3][5]:.2f}", fontsize=10, horizontalalignment='right',
+    axes[2].text(0.99, 0.75, f"nRMSE_R: {metrics_df[metric3].iloc[2]:.2f}\nnRMSE_IQR: {metrics_df[metric3].iloc[3]:.2f}\n"
+                 f"nDist_R: {metrics_df[metric3].iloc[5]:.2f}", fontsize=10, horizontalalignment='right',
                  verticalalignment='center', transform=axes[2].transAxes)
-    axes[3].text(0.99, 0.75, f"nRMSE_R: {metrics_df[metric4][2]:.2f}\nnRMSE_IQR: {metrics_df[metric4][3]:.2f}\n"
-                 f"nDist_R: {metrics_df[metric4][5]:.2f}", fontsize=10, horizontalalignment='right',
+    axes[3].text(0.99, 0.75, f"nRMSE_R: {metrics_df[metric4].iloc[2]:.2f}\nnRMSE_IQR: {metrics_df[metric4].iloc[3]:.2f}\n"
+                 f"nDist_R: {metrics_df[metric4].iloc[5]:.2f}", fontsize=10, horizontalalignment='right',
                  verticalalignment='center', transform=axes[3].transAxes)
     if FDCs5:
-        axes[4].text(0.99, 0.75, f"nRMSE_R: {metrics_df[metric5][2]:.2f}\nnRMSE_IQR: {metrics_df[metric5][3]:.2f}\n"
-                 f"nDist_R: {metrics_df[metric5][5]:.2f}", fontsize=10, horizontalalignment='right',
+        axes[4].text(0.99, 0.75, f"nRMSE_R: {metrics_df[metric5].iloc[2]:.2f}\nnRMSE_IQR: {metrics_df[metric5].iloc[3]:.2f}\n"
+                 f"nDist_R: {metrics_df[metric5].iloc[5]:.2f}", fontsize=10, horizontalalignment='right',
                      verticalalignment='center', transform=axes[4].transAxes)
         
         
@@ -1563,6 +1665,128 @@ def plot_downscaling_improvement(FDCs,
     axes[-1].xaxis.set_major_formatter(dates.DateFormatter('%d/%m/%y'))
     plt.savefig(filename, format="png", bbox_inches='tight', dpi=100)
 
+
+def plot_downscaling_transferability(FDCs, FDCs1, FDCs2, #metric1,
+                                     #downscaling_metrics, 
+                                     filename):
+
+    # Loading FDCs
+    FDCs_ref_df = pd.read_csv(FDCs, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
+    FDCs1_df = pd.read_csv(FDCs1, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
+    FDCs2_df = pd.read_csv(FDCs2, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
+
+    # Compute the metrics
+    start_t = datetime.now()
+    # Pre-format comparison dates
+    FDCs_ref_df['date_str'] = FDCs_ref_df.index.strftime('%Y-%m-%d')
+    FDCs1_df['date_str'] = FDCs1_df.index.strftime('%Y-%m-%d')
+    FDCs2_df['date_str'] = FDCs2_df.index.strftime('%Y-%m-%d')# Ensure the index is datetime
+    FDCs_ref_df.index = pd.to_datetime(FDCs_ref_df.index)
+    FDCs1_df.index = pd.to_datetime(FDCs1_df.index)
+    FDCs2_df.index = pd.to_datetime(FDCs2_df.index)
+    print(FDCs_ref_df, FDCs1_df)
+    obs_grouped = FDCs_ref_df.groupby('date_str')['Discharge']
+    fit1_grouped = FDCs1_df.groupby('date_str')['Discharge']
+    fit2_grouped = FDCs2_df.groupby('date_str')['Discharge']
+    # Ensure same date range
+    date_range = np.unique(FDCs_ref_df['date_str'])
+    # Initialize result arrays
+    ks_pvalues1 = np.zeros(len(date_range))
+    ks_pvalues2 = np.zeros(len(date_range))
+    ks_stats1 = np.zeros(len(date_range))
+    ks_stats2 = np.zeros(len(date_range))
+    w_dist1 = np.zeros(len(date_range))
+    w_dist2 = np.zeros(len(date_range))
+    r21 = np.zeros(len(date_range))
+    r22 = np.zeros(len(date_range))
+    # Loop over each day
+    for i, day in enumerate(date_range):
+        if day.endswith("-06-01"):
+            print(f"Processing {day}: {(datetime.now() - start_t).seconds} s elapsed")
+        # Select sub-daily data for that day
+        obs_day = obs_grouped.get_group(day).to_numpy()
+        fit_day1 = fit1_grouped.get_group(day).to_numpy() if day in fit1_grouped.groups else np.array([])
+        fit_day2 = fit2_grouped.get_group(day).to_numpy() if day in fit2_grouped.groups else np.array([])
+        # Skip if either is missing
+        if np.size(obs_day)==0 or np.size(fit_day1)==0 or np.size(fit_day2)==0:
+            ks_pvalues1[i] = np.nan
+            ks_pvalues2[i] = np.nan
+            ks_stats1[i] = np.nan
+            ks_stats2[i] = np.nan
+            w_dist1[i] = np.nan
+            w_dist2[i] = np.nan
+            r21[i] = np.nan
+            r22[i] = np.nan
+            continue
+        # Apply your KS computation
+        try:
+            ks_pvalues1[i], ks_stats1[i], _ = compute_KolmogorovSmirnov(obs_day, fit_day1)
+            ks_pvalues2[i], ks_stats2[i], _ = compute_KolmogorovSmirnov(obs_day, fit_day2)
+            w_dist1[i] = compute_Wasserstein(obs_day, fit_day1)
+            w_dist2[i] = compute_Wasserstein(obs_day, fit_day2)
+            r21[i] = compute_r2(obs_day, fit_day1)
+            r22[i] = compute_r2(obs_day, fit_day2)
+        except AssertionError:
+            # If sorting or array check fails
+            ks_pvalues1[i] = np.nan
+            ks_pvalues2[i] = np.nan
+            ks_stats1[i] = np.nan
+            ks_stats2[i] = np.nan
+            w_dist1[i] = np.nan
+            w_dist2[i] = np.nan
+            r21[i] = np.nan
+            r22[i] = np.nan
+
+    perc_above_threshold1 = np.count_nonzero(ks_pvalues1 >= 0.05) / np.count_nonzero(~np.isnan(ks_pvalues1)) * 100
+    perc_above_threshold2 = np.count_nonzero(ks_pvalues2 >= 0.05) / np.count_nonzero(~np.isnan(ks_pvalues2)) * 100
+    print("KS perc_above_threshold1", perc_above_threshold1)
+    print("KS perc_above_threshold2", perc_above_threshold2)
+
+    perc_above_threshold1 = np.count_nonzero(r21 >= 0.95) / np.count_nonzero(~np.isnan(r21)) * 100
+    perc_above_threshold2 = np.count_nonzero(r22 >= 0.95) / np.count_nonzero(~np.isnan(r22)) * 100
+    print("R² perc_above_threshold1", perc_above_threshold1)
+    print("R² perc_above_threshold2", perc_above_threshold2)
+    
+    # Select the dates
+    date1 = '2011-07-01'
+    date2 = '2011-07-07'
+    dates_ref = FDCs_ref_df.index.get_level_values(0)
+    dates1 = FDCs1_df.index.get_level_values(0)
+    dates2 = FDCs2_df.index.get_level_values(0)
+    FDCs_ref_df = FDCs_ref_df[(dates_ref >= date1) & (dates_ref < date2)]
+    FDCs1_df = FDCs1_df[(dates1 >= date1) & (dates1 < date2)]
+    FDCs2_df = FDCs2_df[(dates2 >= date1) & (dates2 < date2)]
+
+    # Start the plotting
+    fig, axes = plt.subplots(1, 1, figsize=(10, 2), sharex=True)
+    fig.subplots_adjust(wspace=0.3)
+    line1, = axes.plot(FDCs_ref_df.index, FDCs_ref_df['Discharge'].values, '.', color='orange')
+    line2, = axes.plot(FDCs1_df.index, FDCs1_df['Discharge'].values, '.', color='teal')
+    line3, = axes.plot(FDCs2_df.index, FDCs2_df['Discharge'].values, '.', color='black')
+
+    axes.text(0.50, 0.80, f"KS dist.: {np.nanmean(ks_stats1):.2f}\nKS p-value: {np.nanmean(ks_pvalues1):.2f}\n"
+              f"Wass. dist.: {np.nanmean(w_dist1):.2f}", color='teal', fontsize=10, horizontalalignment='right',
+              verticalalignment='center', transform=axes.transAxes)
+    axes.text(0.99, 0.80, f"KS dist.: {np.nanmean(ks_stats2):.2f}\nKS p-value: {np.nanmean(ks_pvalues2):.2f}\n"
+              f"Wass. dist.: {np.nanmean(w_dist2):.2f}", color='black', fontsize=10, horizontalalignment='right',
+              verticalalignment='center', transform=axes.transAxes)
+        
+    handles, labels = axes.get_legend_handles_labels()
+    handles.extend([line1, line2, line3])
+    labels.extend(["HGDA observed FDCs",  "Downscaled FDCs",  "Downscaled FDCs obtained with BI parameters"])
+    axes.legend(handles=handles, labels=labels, loc='upper left', bbox_to_anchor=(-0.05, -0.2), frameon=False, ncols=3)
+    
+    axes.text(0.03, 0.9, "a)", fontsize=10, horizontalalignment='center',
+                 verticalalignment='center', transform=axes.transAxes)
+
+    plt.xlabel('Days')
+    axes.set_ylabel('Normalized discharge')
+    axes.xaxis.set_minor_locator(dates.HourLocator())
+    axes.xaxis.set_minor_formatter(dates.DateFormatter(''))
+    axes.xaxis.set_major_locator(dates.DayLocator())
+    axes.xaxis.set_major_formatter(dates.DateFormatter('%d/%m/%y'))
+    plt.savefig(filename, format="png", bbox_inches='tight', dpi=100)
+
 def Mutzner2015_plot(subdaily_discharge, months, filename):
     # Observed discharge
     df = pd.read_csv(subdaily_discharge, header=0, na_values='', usecols=[0, 1],
@@ -1577,7 +1801,7 @@ def Mutzner2015_plot(subdaily_discharge, months, filename):
     detrended_df = df - daily_moving_window
 
     # Extract all the years, months and days covered
-    yearly_df = df.groupby(pd.Grouper(freq='Y')).last()
+    yearly_df = df.groupby(pd.Grouper(freq='YE')).last()
     years = yearly_df.index.year
     months = np.unique(detrended_df.index.month)
     days = np.unique(detrended_df.index.day)
@@ -1673,5 +1897,86 @@ def Mutzner2015_plot(subdaily_discharge, months, filename):
     plt.savefig(filename + '_remainder.pdf', format="pdf", bbox_inches='tight', dpi=100)
 
 
+def plot_composite_FDCs_by_category(catchments, path, area, months, function, influence_label, filename):
+        
+    # Start the plotting
+    fig, axes = plt.subplots(2, 2, figsize=(5, 5), sharex=True)
+    [ax.spines['right'].set_visible(False) for ax in axes.flatten()]
+    [ax.spines['top'].set_visible(False) for ax in axes.flatten()]
+    fig.subplots_adjust(wspace=0.3)
+    
+    cmap = plt.get_cmap('viridis')
+    fp = FilePaths(path, area, "BI", months, function)
+    meteo_df = pd.read_csv(fp.dataframe_constrained_filename, index_col=0)
+    normalize = mcolors.Normalize(vmin=np.nanmin(meteo_df[influence_label].values),
+                                  vmax=np.nanmax(meteo_df[influence_label].values))
+    for catchment in catchments:
+        # Fetch the catchment data
+        fp = FilePaths(path, area, catchment, months, function)
+        meteo_df = pd.read_csv(fp.dataframe_constrained_filename, index_col=0)
+        FDCs_df = pd.read_csv(fp.observed_15min_discharge_FDCs, index_col=0, 
+                              parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
+        
+        # X axis
+        t_fit = np.linspace(0, 1, 96)
+        
+        # Precompute the lookup dictionary (date → values)
+        fdc_lookup = {d: FDCs_df.loc[d].values for d in FDCs_df.index.strftime("%Y-%m-%d").unique()}
+        
+        for (date, values), (time, FDC) in zip(meteo_df.iterrows(), FDCs_df.iterrows()):
+            print(date)
+            color = cmap(normalize(meteo_df[meteo_df.index == date][influence_label].values))
+            # One graph per category
+            weather = meteo_df[meteo_df.index == date]['Weather'].values[0]
+            if weather == "Freezing":
+                a, b = 0, 0
+            elif weather == "Melting":
+                a, b = 0, 1
+            elif weather == "Raining":
+                a, b = 1, 0
+            elif weather == "Snowing":
+                a, b = 1, 1
+            else:
+                continue
+    
+            if date in fdc_lookup:
+                # Normalize
+                min = np.nanmin(fdc_lookup[date])
+                norm_FDCs = fdc_lookup[date] - min
+                max = np.nanmax(norm_FDCs)
+                norm_FDCs = norm_FDCs / max
+                axes[a][b].plot(t_fit, norm_FDCs, alpha=0.01, color=color)
+                
+                
+    cax = fig.add_axes([0.95, 0.15, 0.01, 0.5])
+    ColorbarBase(cax, cmap=cmap, norm=normalize)
+    cax.set_ylabel(influence_label)
+    cax.grid(axis='y')
 
+    axes[0][0].text(0.1, 0.9, "a)", fontsize=10, horizontalalignment='center',
+                    verticalalignment='center', transform=axes[0][0].transAxes)
+    axes[1][0].text(0.1, 0.9, "b)", fontsize=10, horizontalalignment='center',
+                    verticalalignment='center', transform=axes[1][0].transAxes)
+    axes[0][1].text(0.1, 0.9, "c)", fontsize=10, horizontalalignment='center',
+                    verticalalignment='center', transform=axes[0][1].transAxes)
+    axes[0][1].text(0.1, 0.9, "d)", fontsize=10, horizontalalignment='center',
+                    verticalalignment='center', transform=axes[1][1].transAxes)
+
+    axes[0][0].text(0.7, 0.9, "Freezing", fontsize=10, horizontalalignment='center',
+                    verticalalignment='center', transform=axes[0][0].transAxes)
+    axes[1][0].text(0.7, 0.9, "Raining", fontsize=10, horizontalalignment='center',
+                    verticalalignment='center', transform=axes[1][0].transAxes)
+    axes[0][1].text(0.7, 0.9, "Melting", fontsize=10, horizontalalignment='center',
+                    verticalalignment='center', transform=axes[0][1].transAxes)
+    axes[1][1].text(0.7, 0.9, "Snowing", fontsize=10, horizontalalignment='center',
+                    verticalalignment='center', transform=axes[1][1].transAxes)
+
+    axes[0][0].set_ylabel('Daily normalized discharge')
+    axes[1][0].set_ylabel('Daily normalized discharge')
+    axes[1][1].xaxis.set_major_formatter(dates.DateFormatter('%H h'))
+    axes[1][1].xaxis.set_major_locator(dates.HourLocator(byhour=[0, 12, 24]))
+    axes[0][1].set_xlabel("t/T, T=24h")
+    axes[1][1].set_xlabel("t/T, T=24h")
+    axes[1][1].set_xticklabels([0, 0.5, 1])
+    plt.savefig(filename, format="png", bbox_inches='tight', dpi=500)
 

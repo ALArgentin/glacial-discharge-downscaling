@@ -11,6 +11,7 @@ import rpy2.robjects as ro
 import scipy.stats as stats
 from preprocessing import get_statistics, retrieve_subdaily_discharge
 from rpy2.robjects import pandas2ri
+from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
 
 class DownscalingModel():
@@ -191,8 +192,8 @@ class DownscalingModel():
             # Extract the values of the params
             monotonic_decreasing = np.all(np.diff(y_fit2) <= 0)
             if not monotonic_decreasing or np.isnan(params).any():
-                a = b = c = d = np.nan
-                a1 = a2 = a3 = b1 = b2 = b3 = c1 = c2 = c3 = np.nan
+                a = b = c = d = M = np.nan
+                a1 = a2 = a3 = b1 = b2 = b3 = c1 = c2 = c3 = M = np.nan
             else:
                 if self.function == "Singh2014":
                     a, b = params
@@ -273,9 +274,6 @@ class DownscalingModel():
         meteo_df["Day of the year"] = daily_summer_df.index.dayofyear
         meteo_df.to_csv(self.file_paths.dataframe_filename)
         self.meteo_df = meteo_df
-        
-        model.discard_calibrated_parameter_outliers()
-        self.meteo_df.to_csv(self.file_paths.dataframe_constrained_filename)
     
         x_data1_df.to_csv(self.file_paths.x_data1_filename)
         y_data1_df.to_csv(self.file_paths.y_data1_filename)
@@ -320,20 +318,21 @@ class DownscalingModel():
         # Replace the 'Qmean' column with the content of qmean_distrib
         sel_data['Qmean'] = qmean_distrib['$Q_{mean}$'].values
         
-        # Activate pandas to R DataFrame conversion
-        pandas2ri.activate()
-        
         ro.r(f"set.seed(2)")  # Set seed in R for reproducibility
         
         # Load the fitted model for minimum discharge and use it for predictions
         fitted_model = ro.r(f'readRDS("{self.file_paths.gam_min_model}")')
-        new_data_r = pandas2ri.py2rpy(sel_data)  # Convert new data to R dataframe
+        # Convert Pandas DataFrame to R DataFrame within a local conversion context
+        with localconverter(pandas2ri.converter):
+            new_data_r = pandas2ri.py2rpy(sel_data)  # Convert new data to R dataframe
         predictions = ro.r('predict')(fitted_model, new_data_r)  # Make predictions
         min_distrib = np.array(predictions)  # Convert predictions back to Python
         
         # Load the fitted model for maximum discharge and use it for predictions
         fitted_model = ro.r(f'readRDS("{self.file_paths.gam_max_model}")')
-        new_data_r = pandas2ri.py2rpy(sel_data)  # Convert new data to R dataframe
+        # Convert Pandas DataFrame to R DataFrame within a local conversion context
+        with localconverter(pandas2ri.converter):
+            new_data_r = pandas2ri.py2rpy(sel_data)  # Convert new data to R dataframe
         predictions = ro.r('predict')(fitted_model, new_data_r)  # Make predictions
         max_distrib = np.array(predictions)  # Convert predictions back to Python
         
@@ -398,22 +397,30 @@ class DownscalingModel():
         
         return qmin_distrib, qmax_distrib
 
-    def select_other_parameters(self, df, kde_dict):
+    def sample_other_parameters_with_dependence(self, df, state_of_days):
         # Take the distributions to sample them
-        nb_days = len(df)
-        if len(kde_dict) > 7: # With weather
-            state_of_days = self.meteo_df["Weather"].values
-            if simulated:
-                sel_data = self.meteo_df.copy()
-                # Ensure the DataFrames have the same time index format
-                sel_data = sel_data.loc[df.index.min():df.index.max()]  # Crop to the same time range as df
-                state_of_days = sel_data["Weather"].values
-
-            a_distrib = dsf.sample_weather_distribs("$a$", kde_dict, state_of_days)
-            b_distrib = dsf.sample_weather_distribs("$b$", kde_dict, state_of_days)
-            c_distrib = dsf.sample_weather_distribs("$c$", kde_dict, state_of_days)
-            M_distrib = dsf.sample_weather_distribs("$M$", kde_dict, state_of_days)
+        if state_of_days is not None: # With weather
+            a_distrib, b_distrib, c_distrib, M_distrib = dsf.sample_weather_distribs_dependently(self.meteo_df, state_of_days)
         else: # Without weather
+            nb_days = len(df)
+            sampled_row = self.meteo_df[self.meteo_df['$a$'].notna()].sample(nb_days, random_state=42, replace=True)
+            a_distrib = sampled_row["$a$"].values
+            b_distrib = sampled_row["$b$"].values
+            c_distrib = sampled_row["$c$"].values
+            M_distrib = sampled_row["$M$"].values
+
+        return a_distrib, b_distrib, c_distrib, M_distrib
+        
+        
+    def sample_other_parameters_independently(self, df, kde_dict, state_of_days):
+        # Take the distributions to sample them
+        if state_of_days is not None: # With weather
+            a_distrib = dsf.sample_weather_kde_independently("$a$", kde_dict, state_of_days)
+            b_distrib = dsf.sample_weather_kde_independently("$b$", kde_dict, state_of_days)
+            c_distrib = dsf.sample_weather_kde_independently("$c$", kde_dict, state_of_days)
+            M_distrib = dsf.sample_weather_kde_independently("$M$", kde_dict, state_of_days)
+        else: # Without weather
+            nb_days = len(df)
             a_distrib = kde_dict["$a$"].resample(nb_days, seed=42)[0]
             b_distrib = kde_dict["$b$"].resample(nb_days, seed=42)[0]
             c_distrib = kde_dict["$c$"].resample(nb_days, seed=42)[0]
@@ -421,7 +428,7 @@ class DownscalingModel():
 
         return a_distrib, b_distrib, c_distrib, M_distrib
 
-    def apply_downscaling_to_daily_discharge(self, kde_dict,
+    def apply_downscaling_to_daily_discharge(self, kde_dict, independent, weather,
                                              qmin_regr, qmax_regr, FDC_output_file, 
                                              modeled=False, criteria=None, debug=False):
         """
@@ -435,6 +442,9 @@ class DownscalingModel():
         @param kde_dict (dict)
             Dictionary containing kernel density estimation (KDE) distributions for 
             downscaling parameters (e.g., `$a$`, `$b$`, `$c$`, `$M$`).
+        @param meteo_df (dataframe)
+            The daily meteorological dataset, which also contains the
+            calibrated downscaling parameters (e.g., `$a$`, `$b$`, `$c$`, `$M$`).
         @param qmin_regr (sklearn model)
             Regression model for estimating the minimum daily discharge.
             If None, uses GAM to downscale the minimum AND maximum daily discharge.
@@ -488,10 +498,26 @@ class DownscalingModel():
             qmin_distrib, qmax_distrib = self.apply_linear_min_max_downscaling(df, qmin_regr, qmax_regr, criteria)
         else:
             qmin_distrib, qmax_distrib = self.apply_gam_min_max_downscaling(df)
-        a_distrib, b_distrib, c_distrib, M_distrib = self.sample_other_parameters_independently(df, kde_dict, modeled)
+            
+        # Take the distributions to sample them
+        state_of_days = None
+        if weather: # Accounting for weather
+            state_of_days = self.meteo_df["Weather"].values
+            if modeled:
+                sel_data = self.meteo_df.copy()
+                # Ensure the DataFrames have the same time index format
+                sel_data = sel_data.loc[df.index.min():df.index.max()]  # Crop to the same time range as df
+                state_of_days = sel_data["Weather"].values
+            if independent:
+                assert len(kde_dict) > 7
+        if independent:
+            a_distrib, b_distrib, c_distrib, M_distrib = self.sample_other_parameters_independently(df, kde_dict, state_of_days)
+        else:
+            a_distrib, b_distrib, c_distrib, M_distrib = self.sample_other_parameters_with_dependence(df, state_of_days)
         
         # Generate fitted curve for plotting
         all_y_fits = []
+        days = []
         for i, day in enumerate(df.index):
             q_min = qmin_distrib[i]
             q_max = qmax_distrib[i]
@@ -499,10 +525,10 @@ class DownscalingModel():
             b = b_distrib[i]
             c = c_distrib[i]
             M = M_distrib[i]
+            if np.isnan(q_min) or np.isnan(q_max) or np.isnan(a) or np.isnan(b) or np.isnan(c) or np.isnan(M):
+                continue
             if q_min < 0:
                 q_min = 0
-        #    if not np.isnan(q_max) and not np.isnan(q_min):
-        #        assert q_max >= q_min
     
             pomme = pome()
             t_fit = np.linspace(0, 1, self.subdaily_intervals)
@@ -513,17 +539,15 @@ class DownscalingModel():
             elif self.function == "Sigmoid":
                 y_fit = pomme.discharge_time_equation_Sigmoid(t_fit, a, b, c, q_min, q_max, M)
     
-            print("Min, Max, ", np.min(y_fit), np.max(y_fit))
-    
+            days.append(day)
             all_y_fits.extend(y_fit)
-            
     
         # Recreate the 15-min simulation intervals for the FDCs
         number_of_days = len(df.index)
         in_day_increment = list(range(self.subdaily_intervals)) * int(number_of_days)
     
         # Add the 15-min intervals to the datetimes
-        FDCs_time = [day + np.timedelta64(i * 15, 'm') for day in df.index for i in range(self.subdaily_intervals)]
+        FDCs_time = [day + np.timedelta64(i * 15, 'm') for day in days for i in range(self.subdaily_intervals)]
         FDCs_df = pd.DataFrame({'Date': FDCs_time, 'Discharge': all_y_fits})
         FDCs_df = FDCs_df.set_index('Date')
         
@@ -543,27 +567,33 @@ class DownscalingModel():
     
         return FDCs_df
     
-    def load_calibrated_constrained_results(self):
-        self.meteo_df = pd.read_csv(self.file_paths.dataframe_constrained_filename, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d')
-        self.meteo_df = self.meteo_df.drop(self.meteo_df.columns[0], axis=1)
+    def load_calibrated_results(self, calibrated_result_file=None):
+        if calibrated_result_file:
+            self.meteo_df = pd.read_csv(calibrated_result_file, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d')
+            self.meteo_df['Weather'] = self.meteo_df['Weather'].astype(str)
+        else:
+            self.meteo_df = pd.read_csv(self.file_paths.dataframe_filename, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d')
+            self.meteo_df = self.meteo_df.drop(self.meteo_df.columns[0], axis=1)
         self.meteo_df.index = pd.to_datetime(self.meteo_df.index)
 
-    def discard_calibrated_parameter_outliers(self):
-        if self.function == "Singh2014":
-            labels = ["$a$", "$b$", "$M$"]
-        elif self.function == "Sigmoid_d":
-            labels = ["$a$", "$b$", "$c$", "$d$", "$M$"]
-        elif self.function == "Sigmoid":
-            labels = ["$a$", "$b$", "$c$", "$M$"]
-            
+    def discard_calibrated_parameter_outliers(self, labels, percentage, labels_to_discard):
         # Remove rows with too high or low a, b, c values
         # to get rid of outliers.
         final_mask = pd.Series(True, index=self.meteo_df.index)  # Initialize with correct shape
         for label in labels:
-            q1 = self.meteo_df[label].quantile(.05)  # Select the first quantile
-            q3 = self.meteo_df[label].quantile(.95)  # Select the third quantile
+            q1 = self.meteo_df[label].quantile(percentage)  # Select the first quantile
+            q3 = self.meteo_df[label].quantile(1 - percentage)  # Select the third quantile
             mask = self.meteo_df[label].between(q1, q3, inclusive='both')  # Create a mask inbeetween q1 & q3
             final_mask = final_mask & mask  # Adding current mask to the ones already computed
-        self.meteo_df = self.meteo_df.loc[final_mask]  # Filtering the initial dataframe with the final mask
+        for label in labels_to_discard:
+            self.meteo_df.loc[~final_mask, label] = np.nan  # Filtering the initial dataframe with the final mask
         self.meteo_df.index = pd.to_datetime(self.meteo_df.index)
+        
+    def classify_according_to_weather(self, weather_list):
+        # Categorize according to weather
+        self.meteo_df["Weather"] = 'None'
+        self.meteo_df.loc[(self.meteo_df["Temperature"] <= 0), "Weather"] = 'Freezing'
+        self.meteo_df.loc[(self.meteo_df["Temperature"] > 0), "Weather"] = 'Melting'
+        self.meteo_df.loc[(self.meteo_df["Precipitation"] > 0.1) & (self.meteo_df["Temperature"] > 0), "Weather"] = 'Raining'
+        self.meteo_df.loc[(self.meteo_df["Precipitation"] > 0.1) & (self.meteo_df["Temperature"] <= 0), "Weather"] = 'Snowing'
         

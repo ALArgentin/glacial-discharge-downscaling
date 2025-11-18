@@ -9,22 +9,19 @@ from file_paths import FilePaths
 from preprocessing import (bootstrapping_observed_FDCs,
                            convert_to_hydrobricks_units)
 from visualization.plot_downscaling_computations import *
-from fit_metrics import compute_KolmogorovSmirnov, compute_Wasserstein, compute_r2, compute_metric
-from pome_fitting import pome
-import warnings
 
 
-path = "/home/aargentin/Documents/Datasets/"
-catchments = ['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'] # Ordered by area.
+path = "/home/anne-laure/Documents/Datasets/"
+catchments = ['PS', 'SGF', 'TF', 'ZA']
 function = "Sigmoid" #"Singh2014" "Sigmoid" "Sigmoid_d" "Sigmoid_ext_var"
 months = [6, 7, 8, 9]
 weather_list = ['Freezing', 'Melting', 'Raining', 'Snowing']
-calibrate = False
+calibrate = True
 
 
-if False:
+if True:
     for catchment in catchments:
-        fp = FilePaths(path, "Arolla", catchment, months, function)
+        fp = FilePaths(path, "Solda", catchment, months, function)
         model = dc.DownscalingModel(fp, function, months, subdaily_intervals=96)
         if calibrate:
             print(f"Now doing catchment {catchment}.")
@@ -106,198 +103,8 @@ if False:
         metrics_df = pd.DataFrame(metric_dict)
         metrics_df.to_csv(fp.downscaling_metrics)
 
-     
-if True:
-
-    ################################# ADD SOME FIGURES FOR THE REVIEWERS ######################################
-
-    # Do the transferability test between BI and HGDA asked by Reviewer 2
-    if True: 
-        weather_list = ['Freezing', 'Melting', 'Raining', 'Snowing']
-        independent=False
-        # Get the BI parameters
-        BI_fp = FilePaths(path, "Arolla", "BI", months, function)
-        BI_model = dc.DownscalingModel(BI_fp, function, months, subdaily_intervals=96)
-        BI_model.load_calibrated_results(BI_fp.dataframe_constrained_filename)
-        BI_weather_kde_dict = dsf.KDE_computations(BI_model.meteo_df, function, weather_list)
-        # Get the HGDA parameters
-        HGDA_fp = FilePaths(path, "Arolla", "HGDA", months, function)
-        HGDA_model = dc.DownscalingModel(HGDA_fp, function, months, subdaily_intervals=96)
-        HGDA_model.load_calibrated_results(HGDA_fp.dataframe_constrained_filename)
-        HGDA_weather_kde_dict = dsf.KDE_computations(HGDA_model.meteo_df, function, weather_list)
-        # Apply them to HGDA
-        HGDA_FDCs_qmean_observed_gam_weather_df = HGDA_model.apply_downscaling_to_daily_discharge(HGDA_weather_kde_dict, independent, True, None, None, 
-                                                                                                  f"{HGDA_fp.results}Transferability_HGDA2HGDA.csv")
-        
-        HGDA_model.meteo_df["$a$"] = BI_model.meteo_df["$a$"]
-        HGDA_model.meteo_df["$b$"] = BI_model.meteo_df["$b$"]
-        HGDA_model.meteo_df["$c$"] = BI_model.meteo_df["$c$"]
-        HGDA_model.meteo_df["$M$"] = BI_model.meteo_df["$M$"]
-
-        BI_FDCs_qmean_observed_gam_weather_df = HGDA_model.apply_downscaling_to_daily_discharge(BI_weather_kde_dict, independent, True, None, None, 
-                                                                                                f"{BI_fp.results}Transferability_BI2HGDA.csv")
-        HGDA_comparison_data = HGDA_fp.observed_15min_discharge_FDCs
-
-        FDCs_ref_df = pd.read_csv(HGDA_fp.observed_15min_discharge_FDCs, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d %H:%M:%S')
-        plt.figure(figsize=(200, 3))
-        start_date = '2012-01-01'
-        end_date   = '2013-01-01'
-        plt.plot(HGDA_FDCs_qmean_observed_gam_weather_df.loc[start_date:end_date].index, 
-                HGDA_FDCs_qmean_observed_gam_weather_df.loc[start_date:end_date]['Discharge'], 
-                linestyle='-', color='blue', label='Discharge')
-        plt.plot(FDCs_ref_df.loc[start_date:end_date].index, 
-                FDCs_ref_df.loc[start_date:end_date]['Discharge'], 
-                linestyle='-', color='red', label='Discharge')
-        plt.xlabel('Date')
-        plt.ylabel('Discharge')
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("plot.png")
-
-        metrics = ['rmse', 'ned', 'nrmse_range', 'nrmse_iqr', 'nrmse_mean', 'norm_max_dist']
-        HGDA_metric_values = compute_metric(HGDA_FDCs_qmean_observed_gam_weather_df, FDCs_ref_df, months, metrics, True, True)
-        BI_metric_values = compute_metric(BI_FDCs_qmean_observed_gam_weather_df, FDCs_ref_df, months, metrics, True, True)
-        print("HGDA metrics:", HGDA_metric_values, "BI metrics:", BI_metric_values)
-        plot_downscaling_transferability(HGDA_comparison_data, f"{HGDA_fp.results}Transferability_HGDA2HGDA.csv", 
-                                        f"{BI_fp.results}Transferability_BI2HGDA.csv", f"{path}OutputFigures/Transferability.png")
-     
-
-    catchment = "BI"
-    fp = FilePaths(path, "Arolla", catchment, months, function)
-    months_str = '_'.join(str(m) for m in months)
-    figures = f"{path}OutputFigures/"
-    figure3(path, "Arolla", "BI", months, function, figures=figures)
-    precipitation("/home/aargentin/Documents/Datasets/IDAWEB_MeteoSwiss/Arolla/order_124535_data.txt", figures)
-    figure4(path, "Arolla", "BI", months, function, figures=figures)
-
-    KS_distances(catchments, path, months, function, figures=figures)
-    wasserstein_distances(catchments, path, months, function, figures=figures)
+if False:
     
-    variables = {"$a$": np.array([5, 10, 25, 50, 75]), "$b$": np.array([0, 0.4, 0.8, 1.2, 1.8]),
-                 "$c$": np.linspace(-1, 1, 5),
-                 "$M$": np.linspace(0.1, 5.1, 5),
-                 #"$Q_{min}$": np.linspace(0, 3, 5), "$Q_{max}$": np.linspace(2, 10, 5)
-                 }
-    plot_function_sensitivity(f'{figures}function_sensitivity_high_threshold_{function}_{catchment}_{months_str}.pdf',
-                              variables, function="Sigmoid")
-    variables = {"$a$": np.array([0, -1.8, -5, -15, -25]), "$b$": np.array([0, -0.1, -0.2, -0.4, -0.8]), #np.linspace(-20, 0, 5)
-                 "$c$": np.linspace(-2, -1, 5),
-                 "$M$": np.linspace(-0.1, -5.1, 5),
-                 #"$Q_{min}$": np.linspace(0, 3, 5), "$Q_{max}$": np.linspace(2, 10, 5)
-                 }
-    plot_function_sensitivity(f'{figures}function_sensitivity_low_threshold_{function}_{catchment}_{months_str}.pdf',
-                              variables, function="Sigmoid")
-
-
-    # Do the KS computations asked by Reviewer 2
-    if True: 
-
-        start_t = datetime.now()
-        for catchment in ["HGDA"]:
-            fp = FilePaths(path, "Arolla", catchment, months, function)
-            meteo_df = pd.read_csv(fp.dataframe_filename, index_col=0)
-            
-            x_data_df = pd.read_csv(fp.x_data1_filename, index_col=0, parse_dates=True)
-            y_fit_df = pd.read_csv(fp.y_fit1_filename, index_col=0, parse_dates=True)
-
-            # Get the date strings
-            date_range = x_data_df.index.astype(str)
-
-            ks_pvalues = np.zeros(len(date_range))
-            ks_stats = np.zeros(len(date_range))
-            ks_stats2 = np.zeros(len(date_range))
-            wasserstein_dist = np.zeros(len(date_range))
-            r2 = np.zeros(len(date_range))
-            for i, day in enumerate(date_range):
-                if day.endswith("-06-01"):
-                    print(f"Processing year {day}: {(datetime.now() - start_t).seconds} s spent")
-                
-                # Extract the row as arrays of 96 values (ignore date index)
-                x_data = x_data_df.loc[day].to_numpy(dtype=float)
-                y_fit = y_fit_df.loc[day].to_numpy(dtype=float)
-
-                # Skip invalid rows
-                if np.any(np.isnan(x_data)) or np.any(np.isnan(y_fit)):
-                    print("Skipping day due to NaNs:", day)
-                    ks_pvalues[i] = ks_stats[i] = ks_stats2[i] = wasserstein_dist[i] = r2[i] = np.nan
-                    continue
-
-                try:
-                    ks_pvalues[i], ks_stats[i], ks_stats2[i] = compute_KolmogorovSmirnov(x_data, y_fit)
-                    wasserstein_dist[i] = compute_Wasserstein(x_data, y_fit)
-                    r2[i] = compute_r2(x_data, y_fit)
-                except AssertionError:
-                    ks_pvalues[i], ks_stats[i], ks_stats2[i], r2[i] = np.nan, np.nan, np.nan, np.nan  # skip if y_fit is not sorted
-
-            ks_stats_df = pd.DataFrame({"Date": date_range, "KS_pvalue": ks_pvalues, "KS_stat": ks_stats, "KS_stat2": ks_stats2, 
-                                        "Wasserstein_dist": wasserstein_dist, "r2": r2, "a": meteo_df['$a$'], "b": meteo_df['$b$']})
-            if function != "Singh2014":
-                ks_stats_df["c"] = meteo_df['$c$']
-            ks_stats_df.to_csv(fp.results + f"KS_{function}.txt", index=False)
-
-                
-        flushing_dates = ['2009-05-26', '2010-07-17', '2011-07-12', '2011-07-13', '2011-08-22', 
-                          '2011-08-24', '2011-08-25', '2011-08-26', '2011-08-27', '2011-10-02', 
-                          '2011-10-18', '2011-11-06', '2012-07-02', '2012-10-22', '2013-05-07', 
-                          '2013-06-20', '2013-06-21', '2013-07-29', '2013-08-07', '2013-08-08', 
-                          '2013-10-08']
-        vu_missing_dates = [('2011-08-26', '2011-12-31')]
-
-        start_t = datetime.now()
-        for catchment in catchments:
-            print(f"Now processing catchment {catchment}.")
-            fp = FilePaths(path, "Arolla", catchment, months, function)
-            meteo_df = pd.read_csv(fp.dataframe_filename, index_col=0)
-            
-            y_data_df = pd.read_csv(fp.y_data2_filename, index_col=0, parse_dates=True)
-            y_fit_df = pd.read_csv(fp.y_fit2_filename, index_col=0, parse_dates=True)
-
-            # Get the date strings
-            date_range = y_data_df.index.astype(str)
-
-            ks_pvalues = np.zeros(len(date_range))
-            ks_stats = np.zeros(len(date_range))
-            ks_stats2 = np.zeros(len(date_range))
-            wasserstein_dist = np.zeros(len(date_range))
-            r2 = np.zeros(len(date_range))
-            for i, day in enumerate(date_range):
-                if day.endswith("-06-01"):
-                    print(f"Processing year {day}: {(datetime.now() - start_t).seconds} s spent")
-
-                # check if day falls in any flushing range
-                is_vu_missing = any(pd.Timestamp(start) <= pd.Timestamp(day) <= pd.Timestamp(end) 
-                                for start, end in vu_missing_dates)
-
-                if day in flushing_dates or is_vu_missing:
-                    print(f"{day} is a flushing day!")
-                    y_data = np.nan * np.ones(96)
-                    y_fit = np.nan * np.ones(96)
-                else:
-                    # Extract the row as arrays of 96 values (ignore date index)
-                    y_data = y_data_df.loc[day].to_numpy(dtype=float)
-                    y_fit = y_fit_df.loc[day].to_numpy(dtype=float)
-
-                # Skip invalid rows
-                if np.any(np.isnan(y_data)) or np.any(np.isnan(y_fit)):
-                    ks_pvalues[i] = ks_stats[i] = ks_stats2[i] = wasserstein_dist[i] = r2[i] = np.nan
-                    continue
-
-                try:
-                    ks_pvalues[i], ks_stats[i], ks_stats2[i] = compute_KolmogorovSmirnov(y_data, y_fit)
-                    wasserstein_dist[i] = compute_Wasserstein(y_data, y_fit)
-                    r2[i] = compute_r2(y_data, y_fit)
-                except AssertionError:
-                    ks_pvalues[i], ks_stats[i], ks_stats2[i], r2[i] = np.nan, np.nan, np.nan, np.nan  # skip if y_fit is not sorted
-            ks_stats_df = pd.DataFrame({"Date": date_range, "KS_pvalue": ks_pvalues, "KS_stat": ks_stats, "KS_stat2": ks_stats2, 
-                                        "Wasserstein_dist": wasserstein_dist, "r2": r2, "a": meteo_df['$a$'], "b": meteo_df['$b$']})
-            if function != "Singh2014":
-                ks_stats_df["c"] = meteo_df['$c$']
-            ks_stats_df.to_csv(fp.results + f"KS_{function}_bis.txt", index=False)
-
-
-
-
-    print(vhlvyuol)
     
     ###########################################################################################################
     months_str = '_'.join(str(m) for m in months)
@@ -307,7 +114,7 @@ if True:
     plot_comparison_of_catchments_distributions_depending_on_weather(catchments, path, function, months_str, f'{figures}comparison_KDE_weather_{function}_{months_str}')
     
     ################################## Discharge variability plot #############################################
-    meteo_station = "/home/aargentin/Documents/Datasets/IDAWEB_MeteoSwiss/Temperature/"
+    meteo_station = "/home/anne-laure/Documents/Datasets/IDAWEB_MeteoSwiss/Temperature/"
     plot_discharge_variability(['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'], months_str, function, meteo_station,
                                f"{figures}dicharge_variability_{function}_{months_str}")
     plot_discharge_variability(['BI', 'HGDA', 'TN', 'PI', 'BS', 'VU', 'DB'], months_str, function, meteo_station,

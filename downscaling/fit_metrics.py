@@ -3,6 +3,8 @@ import numpy as np
 import pandas as pd
 import pymannkendall as mk
 from extract_hydrological_variables import select_months
+from scipy import stats
+import warnings
 
 
 def mann_kendall_tests(meteo_df, file_paths):
@@ -79,16 +81,17 @@ def compute_reference_metric(all_bootstrapped_FDCs_dfs, observed_FDCs_df, metric
                 range = np.nanmax(observed_FDCs_df['Discharge'].values) - np.nanmin(observed_FDCs_df['Discharge'].values)
                 value = np.nanmax(all_bootstrapped_FDCs_dfs[str(i)].values - observed_FDCs_df['Discharge'].values) / range
             else:
-                value = hb.evaluate(all_bootstrapped_FDCs_dfs[str(i)].values, observed_FDCs_df['Discharge'].values, metric)
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")  # Ignore all warnings
+                    value = hb.evaluate(all_bootstrapped_FDCs_dfs[str(i)].values, observed_FDCs_df['Discharge'].values, metric)
             metrics_values[i, j] = value
         i += 1
 
     ref_metrics = np.mean(metrics_values, axis=0)
-    print(ref_metrics)
 
     return ref_metrics
 
-def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metrics):
+def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metrics, clean_first=True, clean_second=False):
     """
     Compute the hydrological metrics indicated as input on the two discharge datasets
     inputted.
@@ -108,20 +111,37 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metrics)
     """
     print(f"Compute {metrics}...")
 
-    # Formatting
-    simulated_FDCs_df.reset_index(inplace=True)
-    simulated_FDCs_df['year'] = pd.DatetimeIndex(simulated_FDCs_df['Date']).year
-    simulated_FDCs_df = simulated_FDCs_df.set_index('Date')
-    simulated_FDCs_df = select_months(simulated_FDCs_df, months)
+    if clean_first:
+        # Formatting
+        simulated_FDCs_df.reset_index(inplace=True)
+        simulated_FDCs_df['year'] = pd.DatetimeIndex(simulated_FDCs_df['Date']).year
+        simulated_FDCs_df = simulated_FDCs_df.set_index('Date')
+        simulated_FDCs_df = select_months(simulated_FDCs_df, months)
 
-    # Get rid of the last day of bissextile years (leap years) to always have years of 365 days.
-    # We choose this day as it is already done in this way in the data gathered for Arolla.
-    leap_days = simulated_FDCs_df[simulated_FDCs_df.index.strftime('%m-%d') == '02-29']
-    leap_years = leap_days.year.unique()
-    for year in leap_years:
-        simulated_FDCs_df.drop(simulated_FDCs_df.loc[simulated_FDCs_df.index.strftime('%Y-%m-%d') == str(year) + '-12-31'].index, inplace=True)
+        # Get rid of the last day of bissextile years (leap years) to always have years of 365 days.
+        # We choose this day as it is already done in this way in the data gathered for Arolla.
+        leap_days = simulated_FDCs_df[simulated_FDCs_df.index.strftime('%m-%d') == '02-29']
+        leap_years = leap_days.year.unique()
+        for year in leap_years:
+            simulated_FDCs_df.drop(simulated_FDCs_df.loc[simulated_FDCs_df.index.strftime('%Y-%m-%d') == str(year) + '-12-31'].index, inplace=True)
 
-    simulated_FDCs_df = simulated_FDCs_df.set_index('year')
+        simulated_FDCs_df = simulated_FDCs_df.set_index('year')
+
+    if clean_second:
+        # Formatting
+        cleaned_observed_FDCs_df.reset_index(inplace=True)
+        cleaned_observed_FDCs_df['year'] = pd.DatetimeIndex(cleaned_observed_FDCs_df['Date']).year
+        cleaned_observed_FDCs_df = cleaned_observed_FDCs_df.set_index('Date')
+        cleaned_observed_FDCs_df = select_months(cleaned_observed_FDCs_df, months)
+
+        # Get rid of the last day of bissextile years (leap years) to always have years of 365 days.
+        # We choose this day as it is already done in this way in the data gathered for Arolla.
+        leap_days = cleaned_observed_FDCs_df[cleaned_observed_FDCs_df.index.strftime('%m-%d') == '02-29']
+        leap_years = leap_days.year.unique()
+        for year in leap_years:
+            cleaned_observed_FDCs_df.drop(cleaned_observed_FDCs_df.loc[cleaned_observed_FDCs_df.index.strftime('%Y-%m-%d') == str(year) + '-12-31'].index, inplace=True)
+        
+        cleaned_observed_FDCs_df = cleaned_observed_FDCs_df.set_index('year')
 
     # Only select the intersection of the two datasets (mostly used when the simulated data comes from Hydrobricks)
     intersection_dates = simulated_FDCs_df.index.intersection(cleaned_observed_FDCs_df.index)
@@ -134,7 +154,9 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metrics)
             range = np.nanmax(cleaned_observed_FDCs_df['Discharge'].values) - np.nanmin(cleaned_observed_FDCs_df['Discharge'].values)
             metric_values[i] = np.nanmax(simulated_FDCs_df['Discharge'].values - cleaned_observed_FDCs_df['Discharge'].values) / range
         else:
-            metric_values[i] = hb.evaluate(simulated_FDCs_df['Discharge'].values, cleaned_observed_FDCs_df['Discharge'].values, metric)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")  # Ignore all warnings
+                metric_values[i] = hb.evaluate(simulated_FDCs_df['Discharge'].values, cleaned_observed_FDCs_df['Discharge'].values, metric)
 
     return metric_values
 
@@ -158,3 +180,43 @@ def compute_r2(y_data, y_fit):
 
     return r2
 
+
+def compute_KolmogorovSmirnov(y_data, y_fit):
+    """
+    Computation of the Kolmogorov-Smirnov statistic.
+
+    @param y_data (array)
+        The first dataset.
+    @param y_fit (array)
+        The second dataset.
+    @return (float) The Kolmogorov-Smirnov statistic.
+    """
+    # Compute the empirical cumulative distribution functions (CDFs)
+    assert np.array_equal(y_data, np.sort(y_data)[::-1]), "y_data must be sorted"
+    #assert np.array_equal(y_fit, np.sort(y_fit)[::-1]), "y_fit must be sorted"
+    
+    # Compute the KS statistic
+    ks_distance = np.max(np.abs(y_data - y_fit))
+    ks_statistic = stats.ks_2samp(y_data, y_fit).statistic
+    ks_pvalue = stats.ks_2samp(y_data, y_fit).pvalue
+
+    return ks_pvalue, ks_statistic, ks_distance
+
+def compute_Wasserstein(y_data, y_fit):
+    """
+    Computation of the Wasserstein distance.
+
+    @param y_data (array)
+        The first dataset.
+    @param y_fit (array)
+        The second dataset.
+    @return (float) The Wasserstein distance.
+    """
+    # Compute the empirical cumulative distribution functions (CDFs)
+    assert np.array_equal(y_data, np.sort(y_data)[::-1]), "y_data must be sorted"
+    #assert np.array_equal(y_fit, np.sort(y_fit)[::-1]), "y_fit must be sorted"
+    
+    # Compute the Wasserstein distance
+    w_distance = stats.wasserstein_distance(y_data, y_fit)
+
+    return w_distance

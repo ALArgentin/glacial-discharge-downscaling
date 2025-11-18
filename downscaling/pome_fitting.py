@@ -144,6 +144,15 @@ class pome():
     
         @return The flow duration curve.
         """
+        if np.isnan(a) and np.isnan(b) and np.isnan(c) and np.isnan(M):
+            return np.ones(len(ratio)) * np.nan
+        elif np.isnan(a) or np.isnan(b) or np.isnan(c) or np.isnan(M):
+            print("a, b, c or M is NaN (but not all).")
+            return np.ones(len(ratio)) * np.nan
+        elif np.isnan(q_min) or np.isnan(q_max):
+            print("Qmin or Qmax is NaN.")
+            return np.ones(len(ratio)) * np.nan
+            
         numerator = self.exp_f128(-M) - (self.exp_f128(-M * q_min / q_max) - self.exp_f128(-M)) * ((c + 1) / (1 + self.exp_f128(a * (ratio - b))) - (c + 1) / (1 + self.exp_f128(-a * b)) + c * ratio)
         right_side = - np.log(numerator) / M
         q = q_max * right_side
@@ -227,7 +236,6 @@ class pome():
                 a, b, c = params
                 label = f'Fitted Curve: ({c:.2f} + 1)/(1 + exp({a:.2f}(x-{b:.2f}))) + {c:.2f}x - {c:.2f}'
         elif function == "Sigmoid_ext_var":
-            print(day_meteo.columns)
             var1 = day_meteo['Temperature'].values[0]
             var2 = day_meteo['Glacier snow'].values[0]
             var3 = day_meteo['Radiation'].values[0]
@@ -251,10 +259,7 @@ class pome():
                 a = a1 * var1 + a2 * var2 + a3 * var3
                 b = b1 * var1 + b2 * var2 + b3 * var3
                 c = c1 * var1 + c2 * var2 + c3 * var3
-                print(a1, b1, c1, a2, b2, c2, a3, b3, c3)
-                print(var1, var2, var3)
                 label = f'Fitted Curve: ({c:.2f} + 1)/(1 + exp({a:.2f}(x-{b:.2f}))) + {c:.2f}x - {c:.2f}'
-                print("label", label)
     
         # Plot the resulting graph (Fig. 1 of Singh et al., 2014)
         # Generate points for the fitted curve
@@ -310,13 +315,10 @@ class pome():
             elif function == "Sigmoid":
                 a, b, c = params
             elif function == "Sigmoid_ext_var":
-                print(day_meteo.columns)
-                #print(uiö)
                 var1 = day_meteo['Glacier snow'].values[0]
                 var2 = day_meteo['Radiation'].values[0]*0
                 var3 = day_meteo['Radiation'].values[0]*0
                 a1, a2, a3, b1, b2, b3, c1, c2, c3 = params
-                #a1, b1, c1 = params
                 a = a1 * var1 + a2 * var2 + a3 * var3
                 b = b1 * var1 + b2 * var2 + b3 * var3
                 c = c1 * var1 + c2 * var2 + c3 * var3

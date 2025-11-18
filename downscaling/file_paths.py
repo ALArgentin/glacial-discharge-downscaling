@@ -82,16 +82,24 @@ class FilePaths:
         self.gam_max_model = None
         # @}
 
-        self._set_input_file_paths(catchment, months, function)
-        self._set_output_file_paths(months, function)
+        self._set_input_file_paths(catchment, months, function, study_area)
+        self._set_output_file_paths(months, function, study_area)
 
-    def _set_input_file_paths(self, catchment, months, function):
-        self.subdaily_discharge = f"{self.path}Outputs/ObservedDischarges/Arolla_15min_discharge_all_corrected_{catchment}.csv"
-        self.observed_daily_discharge = f"{self.path}Outputs/ObservedDischarges/Arolla_daily_mean_discharge_{catchment}.csv"
-        self.watershed_path = f'{self.path}Swiss_discharge/Arolla_discharge/Watersheds_on_dhm25/{catchment}_UpslopeArea_EPSG21781.txt'
+    def _set_input_file_paths(self, catchment, months, function, study_area):
+        if study_area == "Arolla":
+            area = "Arolla_15min"
+            self.watershed_path = f'{self.path}Swiss_discharge/Arolla_discharge/Watersheds_on_dhm25/{catchment}_UpslopeArea_EPSG21781.txt'
+        elif study_area == "Solda":
+            area = "Solda"
+            self.watershed_path = f'{self.path}Italy_discharge/Watersheds/{catchment}_UpslopeArea_EPSG25832.txt'
+        else:
+            self.watershed_path = None
+            assert self.watershed_path
+        self.subdaily_discharge = f"{self.path}Outputs/ObservedDischarges/{area}_discharge_all_corrected_{catchment}.csv"
+        self.observed_daily_discharge = f"{self.path}Outputs/ObservedDischarges/{study_area}_daily_mean_discharge_{catchment}.csv"
         
         self.hydro_units_file = f"{self.results}hydro_units.csv"
-        self.forcing_file = f"{self.results}/forcing.nc"
+        self.forcing_file = f"{self.results}forcing.nc"
         self.results_file = f"{self.results}results.nc"
         self.dataframe_filename = f"{self.results}meteo_df_{function}_{self.months_str}.csv"
         self.dataframe_constrained_filename = f"{self.results}meteo_df_{function}_{self.months_str}_constrained.csv"
@@ -99,10 +107,10 @@ class FilePaths:
         self.functions_filename = f"{self.results}pdf_functions_{function}_{self.months_str}.csv"
         self.linear_regr_filename = f"{self.results}linear_regr_{self.months_str}.csv"
 
-        self.simulated_daily_discharge = f"{self.results}best_fit_simulated_discharge_SCEUA_melt:temperature_index_nse.csv"
-        self.simulated_daily_discharge_m3s = f"{self.results}best_fit_simulated_discharge_SCEUA_melt:temperature_index_nse_m3s.csv"
+        self.simulated_daily_discharge = f"{self.results}best_fit_simulated_discharge_SCEUA_melt:temperature_index_kge_2012.csv"
+        self.simulated_daily_discharge_m3s = f"{self.results}best_fit_simulated_discharge_SCEUA_melt:temperature_index_kge_2012_m3s.csv"
 
-    def _set_output_file_paths(self, months, function):
+    def _set_output_file_paths(self, months, function, study_area):
         """
         @brief Sets the file paths for output files used in the analysis.
 
@@ -131,18 +139,23 @@ class FilePaths:
         self.t_fit2_filename = f"{self.results}t_fit2_df_{function}_{self.months_str}.csv"
         self.y_fit2_filename = f"{self.results}y_fit2_df_{function}_{self.months_str}.csv"
         self.r22_filename = f"{self.results}r22_df_{function}_{self.months_str}.csv"
+        
+        if study_area == "Arolla":
+            area = "Arolla_15min"
+        else:
+            area = study_area
 
         self.all_bootstrapped_discharge_FDCs = f"{self.results}bootstrapped_FDCs.csv"
-        self.observed_15min_discharge_FDCs = f"{self.results}Arolla_15min_FDCs_from_observed_15min_discharge.csv"
-        self.FDCs_qmean_observed_regr = f"{self.results}Arolla_15min_FDCs_from_observed_daily_discharge.csv"
-        self.FDCs_qmean_observed_regr_weather = f"{self.results}Arolla_15min_FDCs_from_observed_daily_discharge_plus_weather.csv"
-        self.FDCs_qmean_observed_multiregr_weather = f"{self.results}Arolla_15min_FDCs_from_observed_daily_discharge_plus_weather_plus_multiregr.csv"
-        self.FDCs_qmean_simulated_regr = f"{self.results}Arolla_15min_FDCs_from_hydrobricks_daily_discharge.csv"
-        self.FDCs_qmean_simulated_regr_weather = f"{self.results}Arolla_15min_FDCs_from_hydrobricks_daily_discharge_plus_weather.csv"
-        self.FDCs_qmean_observed_gam = f"{self.results}Arolla_15min_FDCs_from_observed_daily_discharge_GAMs.csv"
-        self.FDCs_qmean_observed_gam_weather = f"{self.results}Arolla_15min_FDCs_from_observed_daily_discharge_plus_weather_GAMs.csv"
-        self.FDCs_qmean_simulated_gam = f"{self.results}Arolla_15min_FDCs_from_hydrobricks_daily_discharge_GAMs.csv"
-        self.FDCs_qmean_simulated_gam_weather = f"{self.results}Arolla_15min_FDCs_from_hydrobricks_daily_discharge_GAMs_plus_weather.csv"
+        self.observed_15min_discharge_FDCs = f"{self.results}{area}_FDCs_from_observed_15min_discharge.csv"
+        self.FDCs_qmean_observed_regr = f"{self.results}{area}_FDCs_from_observed_daily_discharge.csv"
+        self.FDCs_qmean_observed_regr_weather = f"{self.results}{area}_FDCs_from_observed_daily_discharge_plus_weather.csv"
+        self.FDCs_qmean_observed_multiregr_weather = f"{self.results}{area}_FDCs_from_observed_daily_discharge_plus_weather_plus_multiregr.csv"
+        self.FDCs_qmean_simulated_regr = f"{self.results}{area}_FDCs_from_hydrobricks_daily_discharge.csv"
+        self.FDCs_qmean_simulated_regr_weather = f"{self.results}{area}_FDCs_from_hydrobricks_daily_discharge_plus_weather.csv"
+        self.FDCs_qmean_observed_gam = f"{self.results}{area}_FDCs_from_observed_daily_discharge_GAMs.csv"
+        self.FDCs_qmean_observed_gam_weather = f"{self.results}{area}_FDCs_from_observed_daily_discharge_plus_weather_GAMs.csv"
+        self.FDCs_qmean_simulated_gam = f"{self.results}{area}_FDCs_from_hydrobricks_daily_discharge_GAMs.csv"
+        self.FDCs_qmean_simulated_gam_weather = f"{self.results}{area}_FDCs_from_hydrobricks_daily_discharge_GAMs_plus_weather.csv"
         self.downscaling_metrics = f"{self.results}downscaling_metrics.csv"
         
         self.a_distrib_filename = f"{self.results}a_distrib.csv"
