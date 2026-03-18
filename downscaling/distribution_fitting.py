@@ -6,6 +6,34 @@ import scipy.stats as stats
 
 
 def test_different_functions(meteo_df, variable):
+    """
+    Tests multiple probability distribution functions and selects the best fit 
+    for a given variable based on the Kolmogorov-Smirnov (KS) statistic.
+
+    This function fits four candidate distributions (normal, lognormal, gamma, 
+    and beta) to the input data and evaluates their goodness-of-fit using the 
+    KS test. The distribution with the lowest KS statistic is selected as the 
+    best-fitting distribution.
+
+    @param meteo_df (pandas.DataFrame)
+        DataFrame containing the variable of interest.
+    @param variable (str)
+        Name of the column in `meteo_df` to be analyzed.
+
+    @return (tuple)
+        A tuple containing:
+        - `type` (str): Name of the best-fitting distribution 
+          ('normal', 'lognormal', 'gamma', or 'beta').
+        - `params` (tuple): Parameters of the selected distribution.
+        - `statis` (float): KS statistic associated with the best fit.
+
+    Notes:
+    -----
+    - Missing values are removed prior to fitting.
+    - The KS statistic measures the distance between empirical and theoretical 
+      distributions; lower values indicate better fit.
+    - The function prints the selected distribution and its KS statistic.
+    """
 
     data = meteo_df[variable].dropna().values
 
@@ -47,6 +75,28 @@ def test_different_functions(meteo_df, variable):
     return type, params, statis
 
 def find_and_save_best_pdf_functions(meteo_df, filename, function):
+    """
+    This function applies `test_different_functions` to a predefined set of 
+    variables (e.g., parameters of a sigmoid model and discharge values), 
+    depending on the selected function type. It identifies the best-fitting
+    probability distributions and saves the results to a CSV file.
+
+    @param meteo_df (pandas.DataFrame)
+        DataFrame containing the variables to analyze.
+    @param filename (str)
+        Path to the output CSV file where results will be saved.
+    @param function (str)
+        Type of function used in the model (e.g., "Sigmoid", "Sigmoid_d"). 
+        Determines which variables are included in the analysis.
+
+    @return None
+
+    Notes:
+    -----
+    - Variables analyzed include "$a$", "$b$", "$M$", "$Q_{min}$", "$Q_{max}$",
+      and optionally "$c$" and "$d$" depending on `function`.
+    - Output CSV contains columns: variable, distribution type, parameters, and statistic.
+    """
 
     a_type, a_params, a_stats = test_different_functions(meteo_df, "$a$")
     b_type, b_params, b_stats = test_different_functions(meteo_df, "$b$")
@@ -73,6 +123,32 @@ def find_and_save_best_pdf_functions(meteo_df, filename, function):
 
 
 def get_KDE_model(meteo_df, variable, weather_list=None):
+    """
+    Computes Kernel Density Estimation (KDE) models for a given variable.
+
+    This function estimates the probability density function of a variable using 
+    Gaussian KDE. KDEs can be computed globally or separately for different 
+    weather states.
+
+    @param meteo_df (pandas.DataFrame)
+        DataFrame containing the variable and optionally weather classifications.
+    @param variable (str)
+        Name of the variable to model.
+    @param weather_list (list of str, optional)
+        List of weather states used to condition the KDE estimation. 
+        If provided, a KDE is computed for each weather state.
+
+    @return (tuple)
+        - If `weather_list` is provided:
+            (list of scipy.stats.gaussian_kde, list of str)
+        - Otherwise:
+            (scipy.stats.gaussian_kde, None)
+
+    Notes:
+    -----
+    - Missing values are removed before KDE computation.
+    - KDEs are computed using `scipy.stats.gaussian_kde`.
+    """
 
     if weather_list:
         kdes = []
@@ -92,6 +168,26 @@ def get_KDE_model(meteo_df, variable, weather_list=None):
         return kde, None
 
 def add_to_kde_dict(kde_dict, kde, var, weather_list):
+    """
+    Adds KDE models to a dictionary with appropriate keys, optionally separating them 
+    by weather state.
+
+    @param kde_dict (dict)
+        Dictionary to store KDE models.
+    @param kde (scipy.stats.gaussian_kde or list)
+        KDE model(s) to add.
+    @param var (str)
+        Name of the variable associated with the KDE.
+    @param weather_list (list of str or None)
+        Weather states corresponding to the KDE models. If None, a single KDE is stored.
+
+    @return None
+
+    Notes:
+    -----
+    - Keys are formatted as "variable_state" when weather-dependent.
+    - Otherwise, the key is simply the variable name.
+    """
     if weather_list:
         for state, k in zip(weather_list, kde):
             key = var + "_" + state
@@ -100,6 +196,27 @@ def add_to_kde_dict(kde_dict, kde, var, weather_list):
         kde_dict[var] = kde
 
 def KDE_computations(meteo_df, function, weather_list):
+    """
+    Computes KDE models for multiple variables, optionally conditioned on 
+    weather states, and stores them in a dictionary.
+
+    @param meteo_df (pandas.DataFrame)
+        DataFrame containing the variables to model.
+    @param function (str)
+        Type of function used (e.g., "Sigmoid", "Sigmoid_d"), determining which 
+        variables are included.
+    @param weather_list (list of str)
+        List of weather states for conditional KDE estimation.
+
+    @return (dict)
+        Dictionary containing KDE models, indexed by variable names or 
+        variable-weather combinations.
+
+    Notes:
+    -----
+    - Always includes "$a$", "$b$", "$M$", "$Q_{min}$", "$Q_{max}$".
+    - Includes "$c$" and "$d$" depending on the function type.
+    """
 
     kde_dict = {}
 
@@ -117,6 +234,29 @@ def KDE_computations(meteo_df, function, weather_list):
     return kde_dict
 
 def sample_weather_distribs_dependently(meteo_df, state_of_days):
+    """
+    Samples parameter values from observed data conditioned on weather states.
+
+    This function selects random observations from the dataset for each weather 
+    state, preserving dependencies between variables.
+
+    @param meteo_df (pandas.DataFrame)
+        DataFrame containing variables and a "Weather" column.
+    @param state_of_days (list of str)
+        Sequence of weather states for which to sample values.
+
+    @return (tuple of lists)
+        - `a_distrib`: Sampled values of "$a$"
+        - `b_distrib`: Sampled values of "$b$"
+        - `c_distrib`: Sampled values of "$c$"
+        - `M_distrib`: Sampled values of "$M$"
+
+    Notes:
+    -----
+    - Sampling is done with a fixed random seed for reproducibility.
+    - If a state is 'None', NaN values are returned.
+    - Dependencies between variables are preserved since values are sampled from the same row.
+    """
     a_distrib = []
     b_distrib = []
     c_distrib = []
@@ -138,6 +278,27 @@ def sample_weather_distribs_dependently(meteo_df, state_of_days):
     return a_distrib, b_distrib, c_distrib, M_distrib
 
 def sample_weather_kde_independently(var, kde_dict, state_of_days):
+    """
+    Samples parameter values from KDE distributions for each weather state, 
+    treating variables independently.
+
+    @param var (str)
+        Variable name to sample.
+    @param kde_dict (dict)
+        Dictionary containing KDE models indexed by variable and weather state.
+    @param state_of_days (list of str)
+        Sequence of weather states for which to generate samples.
+
+    @return (list)
+        List of sampled values corresponding to each weather state.
+
+    Notes:
+    -----
+    - Sampling is performed using `gaussian_kde.resample`.
+    - A fixed seed ensures reproducibility.
+    - If a state is 'None', NaN values are returned.
+    - Unlike dependent sampling, variables are sampled independently.
+    """
     distrib = []
     for state in state_of_days:
         if state != 'None':
