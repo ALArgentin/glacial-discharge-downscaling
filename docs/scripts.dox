@@ -42,6 +42,6 @@
  *
  * \section code Code
  *
- * \include run_downscaling.py
+ * \include main.py
  */
  
