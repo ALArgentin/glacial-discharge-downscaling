@@ -23,6 +23,7 @@ def select_months_in_year(df, year, months=[6,7,8,9]):
     df = df[df.index.month.isin(months)]
     return df
 
+
 def select_months(df, months):
     """
     Filters a dataframe to include only rows corresponding to a specific
@@ -39,6 +40,7 @@ def select_months(df, months):
     """
     df = df[df.index.month.isin(months)].copy()
     return df
+
 
 def extract_snow_water_eq(results_file, component):
     """
@@ -64,6 +66,7 @@ def extract_snow_water_eq(results_file, component):
 
     return component_df
 
+
 def extract_snow_water_eq_agg(results_file, component):
     """
     Extract the snow water equivalent of aggregated labels of Hydrobricks.
@@ -86,6 +89,7 @@ def extract_snow_water_eq_agg(results_file, component):
     component_df.columns = component_df.columns=[multicols[-1] for multicols in component_df.columns]
 
     return component_df
+
 
 def extract_hydro_unit_characteristics(results_file):
     """
@@ -121,6 +125,7 @@ def extract_hydro_unit_characteristics(results_file):
 
     return hy_ground_areas, hy_glacier_areas
 
+
 def process_content_snow(results_file, component, weight_area, div_area):
     """
     Weight and sum state variables such as snow content that are not
@@ -154,6 +159,7 @@ def process_content_snow(results_file, component, weight_area, div_area):
     # Divide by the area of interest
     comp = np.sum(comp_w, axis=1) / div_area
     return comp, comp_w
+
 
 def extract_meteorological_data(forcing_file, hydro_units_file, with_debris, melt_model):
     """
@@ -234,7 +240,37 @@ def extract_meteorological_data(forcing_file, hydro_units_file, with_debris, mel
 
     return hydro_units, precipitations, temperatures, radiations, pet
 
+
 def get_meteorological_hydrological_data(fp, months, melt_model, with_debris):
+	"""
+    Extract and aggregate meteorological and hydrological data for glacier catchments.
+
+    This function reads forcing files and hydrological unit characteristics to 
+    compute weighted averages of precipitation, temperature, radiation, snow, 
+    and melt components. Outputs a DataFrame aligned by date with key hydrological 
+    predictors.
+
+    @param fp (FilePaths)
+        Object containing paths to input forcing and hydrological files.
+    @param months (list of int)
+        List of months to select (currently not used in the function).
+    @param melt_model (str)
+        Identifier for the melt model to use in snow/ice processing.
+    @param with_debris (bool)
+        Whether to include debris-covered glacier areas in melt computations.
+
+    @return (pandas.DataFrame)
+        DataFrame with daily meteorological and hydrological variables, including:
+        - Glacier area percentage
+        - Precipitation, Temperature, Radiation
+        - Snow melt, Ice melt, Total snow, Glacier snow
+        - Indexed by date
+
+    Notes:
+    -----
+    - Weighted averages are computed over hydro units using area fractions.
+    - Snow and ice melt components are processed using internal helper functions.
+    """
 
     hydro_units, precipitations, temperatures, radiations, pet = extract_meteorological_data(fp.forcing_file, fp.hydro_units_file,
                                                                                              with_debris=with_debris, melt_model=melt_model)

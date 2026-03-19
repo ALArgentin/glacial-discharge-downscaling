@@ -7,12 +7,28 @@ from scipy.optimize import curve_fit
 import warnings
 
 class pome():
+    """
+    @brief POME downscaling utilities.
+
+    Provides helper functions for sub-daily discharge modeling.
+    Tracks overflow events during exponentiation.
+    """
     
     def __init__(self):
         
         self.nb_exp_overflow = 0
 
+
     def exp_f128(self, array):
+        """
+        @brief Safe exponentiation using np.float128.
+
+        Computes np.exp(array) and catches overflows, returning np.nan
+        for problematic values and counting occurrences.
+
+        @param array Array-like input.
+        @return np.ndarray Exponentials (np.nan if overflow).
+        """
         # Avoiding Overflow Error in numpy.exp function with np.float128 (instead of np.float64).
         array_f128 = np.array(array, dtype=np.float128)
         original_filters = warnings.filters.copy()  # Save current warning filters
@@ -29,6 +45,7 @@ class pome():
     
         return exp_in_float128
 
+
     def func_Singh2014(self, ratio, a, b):
         r"""!
         Equation 18b of Singh et al. (2014).
@@ -43,6 +60,7 @@ class pome():
         @return The cumulative distribution function of discharge: \f$ \(1 - a \cdot x^b\) \f$
         """
         return 1 - a * ratio**b
+    
     
     def discharge_time_equation_Singh2014(self, ratio, a, b, q_min, q_max, M):
         """
@@ -66,6 +84,7 @@ class pome():
         # Reestablishing the np.float64 format as np.float128 is not compatible with SciPy.
         return np.array(q, dtype=np.float64)
     
+    
     def func_Sigmoid_d(self, ratio, a, b, c, d):
         """
         Sigmoid version to replace equation 18b of Singh et al. (2014).
@@ -84,6 +103,7 @@ class pome():
         exp_calculation = d / (1 + self.exp_f128(a * (ratio - b))) + c * ratio - d + 1
         # Reestablishing the np.float64 format as np.float128 is not compatible with SciPy.
         return np.array(exp_calculation, dtype=np.float64)
+    
     
     def discharge_time_equation_Sigmoid_d(self, ratio, a, b, c, d, q_min, q_max, M):
         """
@@ -109,6 +129,7 @@ class pome():
         # Reestablishing the np.float64 format as np.float128 is not compatible with SciPy.
         return np.array(q, dtype=np.float64)
     
+    
     def func_Sigmoid(self, ratio, a, b, c):
         """
         Sigmoid version to replace equation 18b of Singh et al. (2014), with d = c + 1.
@@ -126,6 +147,7 @@ class pome():
         exp_calculation = (c + 1) / (1 + self.exp_f128(a * (ratio - b))) + c * ratio - c
         # Reestablishing the np.float64 format as np.float128 is not compatible with SciPy.
         return np.array(exp_calculation, dtype=np.float64)
+    
     
     def discharge_time_equation_Sigmoid(self, ratio, a, b, c, q_min, q_max, M):
         """
@@ -159,6 +181,7 @@ class pome():
         # Reestablishing the np.float64 format as np.float128 is not compatible with SciPy.
         return np.array(q, dtype=np.float64)
     
+    
     def func_Sigmoid_ext_variables(self, input, a1, b1, c1, a2, b2, c2, a3, b3, c3):
         """
         Sigmoid version to replace equation 18b of Singh et al. (2014), with d = c + 1.
@@ -174,6 +197,7 @@ class pome():
         exp_calculation = (c + 1) / (1 + self.exp_f128(a * (x - b))) + c * x - c
         # Reestablishing the np.float64 format as np.float128 is not compatible with SciPy.
         return np.array(exp_calculation, dtype=np.float64)
+    
     
     def fit_a_and_b_to_discharge_probability_curve(self, observed_subdaily_discharge,
                                                    day_meteo, function="Singh2014", nb=96):
@@ -282,7 +306,6 @@ class pome():
         return params, covariance, x_data, y_data, x_fit, y_fit, r2
     
     
-    
     def fit_m_to_flow_duration_curve(self, observed_subdaily_discharge, params, q_min, q_max,
                                      day_meteo, function="Singh2014", nb=96):
         """
@@ -323,6 +346,7 @@ class pome():
                 b = b1 * var1 + b2 * var2 + b3 * var3
                 c = c1 * var1 + c2 * var2 + c3 * var3
     
+    
         # a, b, q_min, q_max have to be defined outside the function when calling curve_fit,
         # so we define the function to be solved inside this current function.
         def discharge_time_equation_to_solve_Singh2014(tau, M):
@@ -334,6 +358,8 @@ class pome():
             q = q_max * right_side
             # Reestablishing the np.float64 format as np.float128 is not compatible with SciPy.
             return np.array(q, dtype=np.float64)
+        
+        
         def discharge_time_equation_to_solve_Sigmoid_d(tau, M):
             """
             Sigmoid version to replace equation 23 of Singh et al. (2014).
@@ -343,6 +369,8 @@ class pome():
             q = q_max * right_side
             # Reestablishing the np.float64 format as np.float128 is not compatible with SciPy.
             return np.array(q, dtype=np.float64)
+        
+        
         def discharge_time_equation_to_solve_Sigmoid(tau, M):
             """
             Sigmoid version to replace equation 23 of Singh et al. (2014), with d = c + 1.

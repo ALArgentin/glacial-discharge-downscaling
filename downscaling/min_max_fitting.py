@@ -14,6 +14,38 @@ from sklearn.metrics import mean_squared_error, r2_score
 def gam_on_discharge(meteo_df, catchment, file_paths,
                      date_begin = '2009-06-01', date_end = '2014-09-30',
                      excluded_periods = []):
+    """
+    @brief Fits Generalized Additive Models (GAMs) to minimum and maximum daily discharge.
+
+    This function uses the R `mgcv` package via `rpy2` to fit GAMs for
+    daily minimum (`Qmin`) and maximum (`Qmax`) discharge based on meteorological
+    and glacier-related predictors. Diagnostic plots and model summaries are saved 
+    for later inspection, and the fitted models are serialized for reuse.
+
+    @param meteo_df (pandas.DataFrame)
+        Daily meteorological and hydrological data including discharge and
+        predictor variables.
+    @param catchment (str)
+        Identifier of the catchment being analyzed.
+    @param file_paths (FilePaths)
+        Object containing paths for saving diagnostic plots, summaries, and models.
+    @param date_begin (str, optional)
+        Start date (inclusive) for the training period. Default is '2009-06-01'.
+    @param date_end (str, optional)
+        End date (exclusive) for the training period. Default is '2014-09-30'.
+    @param excluded_periods (list of tuple, optional)
+        List of (start, end) periods to exclude from fitting due to data issues.
+        Default is empty.
+
+    Notes:
+    -----
+    - Column names in `meteo_df` are automatically mapped to standardized names 
+      expected by the GAM formulas.
+    - Separate GAMs are fitted for `Qmin` and `Qmax`.
+    - Diagnostic plots (`gam.check`) are saved to PDF files.
+    - Model summaries and the GAM objects themselves are saved for reproducibility.
+    - Random seed is set to 2 for reproducibility.
+    """
     
     # Import necessary R packages
     base = importr("base")
@@ -154,6 +186,7 @@ def linear_regression_with_scikit(q_mean, q_min_max):
     print("Coefficient of determination R$^2$: %.2f" % r2)
 
     return regr, score, coefs, intercept, mse, r2
+
 
 def extract_discharge_relation_to_daily_mean(meteo_df, filename, criteria):
     """

@@ -1,4 +1,35 @@
 class FilePaths:
+    """
+    @brief Container for all input and output file paths used in the downscaling workflow.
+
+    This class generates and organizes file paths for input datasets, calibration outputs,
+    downscaling results, and model artifacts based on the study area, catchment, months, 
+    and downscaling function. It supports structured access to all files needed for 
+    reproducibility and analysis.
+
+    @param path (str)
+        Base path of the repository or data storage location.
+    @param study_area (str)
+        Identifier of the study area, e.g., "Arolla" or "Solda".
+    @param catchment (str)
+        Name or code of the catchment for which the data and results are organized.
+    @param months (list of int)
+        List of months used in the analysis (e.g., [6, 7, 8, 9]).
+    @param function (str)
+        Downscaling function to use; options include:
+        - "Singh2014": original function
+        - "Sigmoid_d": glacial function
+        - "Sigmoid": simplified glacial function
+
+    Notes:
+    -----
+    - Input files include observed discharge, hydro unit info, and forcing data.
+    - Output files include calibrated parameters, downscaled results, FDCs, 
+      GAM diagnostics, and distributions of downscaling parameters.
+    - Calibration and generative additive model outputs are grouped for easy access.
+    - File paths are automatically generated based on study area, months, catchment,
+      and function to ensure consistent directory structure.
+    """
     def __init__(self, path, study_area, catchment, months, function):
         self.path = path
         self.results = f"{path}Outputs/{study_area}/{catchment}/"
@@ -85,7 +116,33 @@ class FilePaths:
         self._set_input_file_paths(catchment, months, function, study_area)
         self._set_output_file_paths(months, function, study_area)
 
+
     def _set_input_file_paths(self, catchment, months, function, study_area):
+		"""
+		@brief Generates input file paths for the given study area, catchment, and months.
+
+		This internal method initializes paths to all input datasets and observed 
+		discharge files required for the downscaling workflow. Paths are automatically 
+		constructed based on the study area and catchment conventions.
+
+		@param catchment (str)
+		    Name or code of the catchment for which input files are required.
+		@param months (list of int)
+		    List of months considered in the analysis.
+		@param function (str)
+		    Name of the downscaling function, used to differentiate output datasets.
+		@param study_area (str)
+		    Study area identifier; currently supports "Arolla" and "Solda".
+
+		Notes:
+		-----
+		- Observed and sub-daily discharge files are stored under `Outputs/ObservedDischarges/`.
+		- Hydro unit, forcing, and results files are stored under the specific `results` folder 
+		  for the study area and catchment.
+		- File names for dataframes, functions, and regression outputs include the month 
+		  string and downscaling function for clarity.
+		- If the study area is unsupported, the method asserts to prevent misconfigured paths.
+		"""
         if study_area == "Arolla":
             area = "Arolla_15min"
             self.watershed_path = f'{self.path}Swiss_discharge/Arolla_discharge/Watersheds_on_dhm25/{catchment}_UpslopeArea_EPSG21781.txt'
@@ -109,6 +166,7 @@ class FilePaths:
 
         self.simulated_daily_discharge = f"{self.results}best_fit_simulated_discharge_SCEUA_melt:temperature_index_kge_2012.csv"
         self.simulated_daily_discharge_m3s = f"{self.results}best_fit_simulated_discharge_SCEUA_melt:temperature_index_kge_2012_m3s.csv"
+
 
     def _set_output_file_paths(self, months, function, study_area):
         """

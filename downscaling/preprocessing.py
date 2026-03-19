@@ -54,6 +54,7 @@ def convert_to_hydrobricks_units(daily_mean_discharges, watershed_path,
     means.columns = ['Discharge (m3/s)']
     means.to_csv(filename, date_format='%d/%m/%Y')
 
+
 def retrieve_subdaily_discharge(df, day):
     """
     Retrieves sub-daily discharge data for a specific day from a dataframe.
@@ -100,6 +101,7 @@ def get_statistics(observed_subdaily_discharge):
     q_max = np.nanmax(observed_subdaily_discharge)
 
     return q_min, q_mean, q_max
+
 
 def block_boostrapping(observed_FDCs_df, months, n_evals=100):
     """
@@ -239,6 +241,7 @@ def recreate_stacked_FDCs_from_observed_subdaily_discharge(
     FDCs_df.to_csv(observed_FDCs_output_file)
 
     return FDCs_df
+
 
 def bootstrapping_observed_FDCs(subdaily_discharge, observed_FDCs_output_file, months):
     """

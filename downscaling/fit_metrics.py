@@ -49,6 +49,7 @@ def mann_kendall_tests(meteo_df, file_paths):
         trend, h, p, z, Tau, s, var_s, slope, intercept = mk.seasonal_test(meteo_df['$M$'].values, period=122)
         file.write(f"M, {trend}, {h}, {p}, {z}, {Tau}, {s}, {var_s}, {slope}, {intercept}\n")
 
+
 def compute_reference_metric(all_bootstrapped_FDCs_dfs, observed_FDCs_df, metrics):
     """
     Compute a reference for the provided metrics (goodness of fit)
@@ -90,6 +91,7 @@ def compute_reference_metric(all_bootstrapped_FDCs_dfs, observed_FDCs_df, metric
     ref_metrics = np.mean(metrics_values, axis=0)
 
     return ref_metrics
+
 
 def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metrics, clean_first=True, clean_second=False):
     """
@@ -201,6 +203,7 @@ def compute_KolmogorovSmirnov(y_data, y_fit):
     ks_pvalue = stats.ks_2samp(y_data, y_fit).pvalue
 
     return ks_pvalue, ks_statistic, ks_distance
+
 
 def compute_Wasserstein(y_data, y_fit):
     """
