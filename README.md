@@ -54,7 +54,7 @@ If you use this code, please cite the corresponding manuscript.
 ## Code structure
 
 ### Core module
-- \ref namespace_downscaling
+- \ref namespacedownscaling
 
 ### Reproducibility scripts
 - \ref main
