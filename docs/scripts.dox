@@ -39,4 +39,9 @@
  * - This script is not part of the core API.
  * - It serves as a reproducibility and analysis pipeline.
  * - Most reusable logic is implemented in dedicated modules.
+ *
+ * \section code Code
+ *
+ * \include run_downscaling.py
  */
+ 
