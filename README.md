@@ -50,13 +50,20 @@ pip install -r requirements.txt
 
 If you use this code, please cite the corresponding manuscript.
 
+---
 
 ## Code structure
 
 ### Core module
+
+Documentation of all classes and functions available.
+
 - \ref downscaling
 
-### Reproducibility scripts
+### Script
+
+Script used to produce the results presented in the article.s
+
 - \ref main
 
 
