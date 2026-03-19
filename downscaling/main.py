@@ -1,10 +1,3 @@
-"""
-@file run_downscaling.py
-@brief Script to reproduce the downscaling workflow.
-
-This script is provided as an example and is not part of the core API.
-"""
-
 import distribution_fitting as dsf
 import downscaling_computations as dc
 import fit_metrics as fm

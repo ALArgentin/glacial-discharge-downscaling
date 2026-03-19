@@ -1,0 +1,42 @@
+/**
+ * @defgroup scripts Scripts
+ * @brief Executable workflows and example pipelines.
+ */
+
+/**
+ * @ingroup scripts
+ * @page main Script: main.py
+ *
+ * This script reproduces the full workflow used in the study:
+ * *"Downscaling daily discharge to sub-daily scales for alpine glacierized catchments"*.
+ *
+ * It includes:
+ * - Calibration of downscaling models
+ * - Distribution fitting (PDFs and KDEs)
+ * - Downscaling of daily discharge to sub-daily resolution
+ * - Evaluation using multiple performance metrics
+ * - Generation of all figures used in the publication
+ *
+ * The script is organized into several blocks:
+ *
+ * - Calibration and preprocessing (optional)
+ * - Downscaling computations (regression and GAM-based)
+ * - Metric computation and evaluation
+ * - Transferability experiments between catchments
+ * - Figure generation for publication and reviewers
+ *
+ * Usage:
+ * -------
+ * This script is intended for internal use and reproducibility.
+ * Paths and parameters must be adapted manually.
+ *
+ * \code
+ * python main.py
+ * \endcode
+ *
+ * Notes:
+ * -------
+ * - This script is not part of the core API.
+ * - It serves as a reproducibility and analysis pipeline.
+ * - Most reusable logic is implemented in dedicated modules.
+ */
