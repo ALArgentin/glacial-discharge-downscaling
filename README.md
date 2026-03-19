@@ -57,6 +57,6 @@ If you use this code, please cite the corresponding manuscript.
 - \ref namespace_downscaling
 
 ### Reproducibility scripts
-- \ref run_downscaling
+- \ref main
 
 
