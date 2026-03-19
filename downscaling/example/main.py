@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+# Add the parent folder of 'downscaling' to sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import distribution_fitting as dsf
 import downscaling_computations as dc
 import fit_metrics as fm
