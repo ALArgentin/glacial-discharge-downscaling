@@ -46,6 +46,13 @@ pip install -r requirements.txt
 
 ---
 
+## Documentation
+
+Doxygen documentation is available here:
+https://alargentin.github.io/glacial-discharge-downscaling-doc/
+
+---
+
 ## Citation
 
 If you use this code, please cite the corresponding manuscript.
