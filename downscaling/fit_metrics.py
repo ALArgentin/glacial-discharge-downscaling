@@ -2,7 +2,7 @@ import hydrobricks as hb
 import numpy as np
 import pandas as pd
 import pymannkendall as mk
-from extract_hydrological_variables import select_months
+from . import extract_hydrological_variables as ehv
 from scipy import stats
 import warnings
 
@@ -116,7 +116,7 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metrics,
         simulated_FDCs_df.reset_index(inplace=True)
         simulated_FDCs_df['year'] = pd.DatetimeIndex(simulated_FDCs_df['Date']).year
         simulated_FDCs_df = simulated_FDCs_df.set_index('Date')
-        simulated_FDCs_df = select_months(simulated_FDCs_df, months)
+        simulated_FDCs_df = ehv.select_months(simulated_FDCs_df, months)
 
         # Get rid of the last day of bissextile years (leap years) to always have years of 365 days.
         # We choose this day as it is already done in this way in the data gathered for Arolla.
@@ -132,7 +132,7 @@ def compute_metric(simulated_FDCs_df, cleaned_observed_FDCs_df, months, metrics,
         cleaned_observed_FDCs_df.reset_index(inplace=True)
         cleaned_observed_FDCs_df['year'] = pd.DatetimeIndex(cleaned_observed_FDCs_df['Date']).year
         cleaned_observed_FDCs_df = cleaned_observed_FDCs_df.set_index('Date')
-        cleaned_observed_FDCs_df = select_months(cleaned_observed_FDCs_df, months)
+        cleaned_observed_FDCs_df = ehv.select_months(cleaned_observed_FDCs_df, months)
 
         # Get rid of the last day of bissextile years (leap years) to always have years of 365 days.
         # We choose this day as it is already done in this way in the data gathered for Arolla.

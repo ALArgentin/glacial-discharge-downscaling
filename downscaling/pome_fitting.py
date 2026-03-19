@@ -1,7 +1,7 @@
 from test.support import _1M
 
 import numpy as np
-from fit_metrics import compute_r2
+from . import fit_metrics as fm
 from scipy.optimize import curve_fit
 
 import warnings
@@ -266,17 +266,17 @@ class pome():
         x_fit = np.linspace(min(x_data), max(x_data), nb)
         if function == "Singh2014":
             y_fit = self.func_Singh2014(x_fit, a, b)
-            r2 = compute_r2(np.flip(y_data), y_fit)
+            r2 = fm.compute_r2(np.flip(y_data), y_fit)
         elif function == "Sigmoid_d":
             y_fit = self.func_Sigmoid_d(x_fit, a, b, c, d)
-            r2 = compute_r2(x_data, y_fit)
+            r2 = fm.compute_r2(x_data, y_fit)
         elif function == "Sigmoid":
             y_fit = self.func_Sigmoid(x_fit, a, b, c)
-            r2 = compute_r2(x_data, y_fit)
+            r2 = fm.compute_r2(x_data, y_fit)
         elif function == "Sigmoid_ext_var":
             arr = np.vstack((x_fit, var1_data, var2_data, var3_data))
             y_fit = self.func_Sigmoid_ext_variables(arr, a1, b1, c1, a2, a3, b2, b3, c2, c3)
-            r2 = compute_r2(x_data, y_fit)
+            r2 = fm.compute_r2(x_data, y_fit)
     
         # Return the coefficients
         return params, covariance, x_data, y_data, x_fit, y_fit, r2
@@ -423,7 +423,7 @@ class pome():
         elif function == "Sigmoid_ext_var":
             y_fit = discharge_time_equation_to_solve_Sigmoid(t_fit, M, *params2[1:])
     
-        r2 = compute_r2(y_data, y_fit)
+        r2 = fm.compute_r2(y_data, y_fit)
     
         # Return the coefficient
         return M, variance, x_data, y_data, t_fit, y_fit, r2

@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from extract_hydrological_variables import select_months
+from . import extract_hydrological_variables as ehv
 
 
 def convert_to_hydrobricks_units(daily_mean_discharges, watershed_path,
@@ -137,7 +137,7 @@ def block_boostrapping(observed_FDCs_df, months, n_evals=100):
     print(f"Block boostrapping...")
     # Formatting
     observed_FDCs_df.index.name = "date"
-    observed_FDCs_df = select_months(observed_FDCs_df, months)
+    observed_FDCs_df = ehv.select_months(observed_FDCs_df, months)
     observed_FDCs_df.reset_index(inplace=True)
 
     observed_FDCs_df.loc[:, 'year'] = pd.DatetimeIndex(observed_FDCs_df['date']).year

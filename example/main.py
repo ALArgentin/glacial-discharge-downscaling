@@ -3,19 +3,19 @@ from pathlib import Path
 # Add the parent folder of 'downscaling' to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import distribution_fitting as dsf
-import downscaling_computations as dc
-import fit_metrics as fm
-import min_max_fitting as mmf
-import numpy as np
-import pandas as pd
-from extract_hydrological_variables import get_meteorological_hydrological_data
-from file_paths import FilePaths
-from preprocessing import (bootstrapping_observed_FDCs,
+from downscaling import distribution_fitting as dsf
+from downscaling import downscaling_computations as dc
+from downscaling import fit_metrics as fm
+from downscaling import min_max_fitting as mmf
+from downscaling import numpy as np
+from downscaling import pandas as pd
+from downscaling.extract_hydrological_variables import get_meteorological_hydrological_data
+from downscaling.file_paths import FilePaths
+from downscaling.preprocessing import (bootstrapping_observed_FDCs,
                            convert_to_hydrobricks_units)
-from visualization.plot_downscaling_computations import *
-from fit_metrics import compute_KolmogorovSmirnov, compute_Wasserstein, compute_r2, compute_metric
-from pome_fitting import pome
+from downscaling.visualization.plot_downscaling_computations import *
+from downscaling.fit_metrics import compute_KolmogorovSmirnov, compute_Wasserstein, compute_r2, compute_metric
+from downscaling.pome_fitting import pome
 import warnings
 
 

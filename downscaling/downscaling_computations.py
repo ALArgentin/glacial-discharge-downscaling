@@ -2,14 +2,14 @@ import csv
 import sys
 from datetime import datetime
 
-import distribution_fitting as dsf
-import extract_hydrological_variables as fc
+from . import distribution_fitting as dsf
+from . import extract_hydrological_variables as fc
+from . import pome_fitting as pf 
+from . import preprocessing as pp
 import numpy as np
 import pandas as pd
-from pome_fitting import pome
 import rpy2.robjects as ro
 import scipy.stats as stats
-from preprocessing import get_statistics, retrieve_subdaily_discharge
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.conversion import localconverter
 from rpy2.robjects.packages import importr
@@ -160,14 +160,14 @@ class DownscalingModel():
         if self.function == "Sigmoid_ext_var":
             time_df = meteo_df
             
-        pomme = pome()
+        pomme = pf.pome()
     
         date_range = np.unique(fc.select_months(time_df, self.months).index.strftime('%Y-%m-%d'))
         for i, day in enumerate(date_range):
             print(day)
             if day.endswith("-06-01"):
                 print(f"Processing year {day}: {(datetime.now() - start_t).seconds} s spent")
-            observed_subdaily_discharge = retrieve_subdaily_discharge(df, day=day)
+            observed_subdaily_discharge = pp.retrieve_subdaily_discharge(df, day=day)
             day_meteo = meteo_df[meteo_df_str_index == day]
     
             # CAREFUL, in this function I switched X_data and y_data in the sigmoid functions.... Consequently also switched for the rest.
@@ -178,7 +178,7 @@ class DownscalingModel():
             if len(x_fit1) != 0: x_fit1_df.loc[day] = x_fit1
             if len(y_fit1) != 0: y_fit1_df.loc[day] = y_fit1
             if r21: r21_df.loc[day] = r21
-            q_min, q_mean, q_max = get_statistics(observed_subdaily_discharge)
+            q_min, q_mean, q_max = pp.get_statistics(observed_subdaily_discharge)
             M, var, x_data2, y_data2, t_fit2, y_fit2, r22 = pomme.fit_m_to_flow_duration_curve(
                 observed_subdaily_discharge, params, q_min, q_max, day_meteo, function=self.function)
             x_data2_df.loc[day] = x_data2
@@ -530,7 +530,7 @@ class DownscalingModel():
             if q_min < 0:
                 q_min = 0
     
-            pomme = pome()
+            pomme = pf.pome()
             t_fit = np.linspace(0, 1, self.subdaily_intervals)
             if self.function == "Singh2014":
                 y_fit = pomme.discharge_time_equation_Singh2014(t_fit, a, b, q_min, q_max, M)
