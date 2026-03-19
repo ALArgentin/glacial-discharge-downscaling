@@ -50,6 +50,7 @@ class DownscalingModel():
         ## and the calibration results.
         self.meteo_df = None
 
+
     def simulate_a_flow_duration_curve(self, params, q_min, q_max, M, day_meteo, pomme):
         """
         Simulate a flow duration curve based on the given parameter sets
@@ -99,6 +100,7 @@ class DownscalingModel():
     
         # Return the simulated discharge
         return y_fit
+
 
     def calibration_workflow(self, meteo_df):
         """
@@ -286,7 +288,27 @@ class DownscalingModel():
         y_fit2_df.to_csv(self.file_paths.y_fit2_filename)
         r22_df.to_csv(self.file_paths.r22_filename)
         
+        
     def apply_gam_min_max_downscaling(self, df):
+		"""
+		Downscale daily discharge using pre-fitted GAM models for min and max discharge.
+
+		This function applies R-based GAM models to predict minimum and maximum daily 
+		discharge from meteorological and glacier variables. It ensures the input 
+		DataFrame is aligned with the calibration dataset.
+
+		@param df (pandas.DataFrame)
+		    Daily discharge data with a 'Discharge' column.
+
+		@return (tuple of np.ndarray)
+		    Predicted minimum and maximum discharge arrays: (min_distrib, max_distrib).
+
+		Notes:
+		-----
+		- The method uses R via rpy2 to run GAM models stored as RDS files.
+		- The 'Qmean' column is replaced with values from the input DataFrame.
+		- Column names in `self.meteo_df` are mapped to short codes before prediction.
+		"""
         qmean_distrib = df['Discharge'].to_frame().rename(columns={"Discharge": "$Q_{mean}$"})
         
         # Rename columns in the DataFrame
@@ -337,6 +359,7 @@ class DownscalingModel():
         max_distrib = np.array(predictions)  # Convert predictions back to Python
         
         return min_distrib, max_distrib
+
 
     def apply_linear_min_max_downscaling(self, df, qmin_regr, qmax_regr, 
                                          criteria=None):
@@ -397,7 +420,19 @@ class DownscalingModel():
         
         return qmin_distrib, qmax_distrib
 
+
     def sample_other_parameters_with_dependence(self, df, state_of_days):
+		"""
+		Sample downscaling parameters while preserving dependencies with weather.
+
+		@param df (DataFrame)
+		    Daily discharge data to match the sample length.
+		@param state_of_days (array-like, optional)
+		    Weather state for each day; if None, samples are independent of weather.
+
+		@return (tuple of arrays)
+		    Sampled arrays of parameters: a_distrib, b_distrib, c_distrib, M_distrib.
+		"""
         # Take the distributions to sample them
         if state_of_days is not None: # With weather
             a_distrib, b_distrib, c_distrib, M_distrib = dsf.sample_weather_distribs_dependently(self.meteo_df, state_of_days)
@@ -413,6 +448,19 @@ class DownscalingModel():
         
         
     def sample_other_parameters_independently(self, df, kde_dict, state_of_days):
+		"""
+		Sample downscaling parameters independently from KDE distributions.
+
+		@param df (DataFrame)
+		    Daily discharge data to match the sample length.
+		@param kde_dict (dict)
+		    KDE objects for each downscaling parameter.
+		@param state_of_days (array-like, optional)
+		    Weather state for each day; if None, samples are drawn independently.
+
+		@return (tuple of arrays)
+		    Sampled arrays of parameters: a_distrib, b_distrib, c_distrib, M_distrib.
+		"""
         # Take the distributions to sample them
         if state_of_days is not None: # With weather
             a_distrib = dsf.sample_weather_kde_independently("$a$", kde_dict, state_of_days)
@@ -427,6 +475,7 @@ class DownscalingModel():
             M_distrib = kde_dict["$M$"].resample(nb_days, seed=42)[0]
 
         return a_distrib, b_distrib, c_distrib, M_distrib
+
 
     def apply_downscaling_to_daily_discharge(self, kde_dict, independent, weather,
                                              qmin_regr, qmax_regr, FDC_output_file, 
@@ -567,7 +616,18 @@ class DownscalingModel():
     
         return FDCs_df
     
+    
     def load_calibrated_results(self, calibrated_result_file=None):
+		"""
+		Load calibrated downscaling results from CSV file.
+
+		@param calibrated_result_file (str, optional)
+		    Path to pre-calibrated parameter file; if None, uses default dataset.
+
+		Notes:
+		-----
+		The resulting DataFrame is stored in `self.meteo_df` with datetime index.
+		"""
         if calibrated_result_file:
             self.meteo_df = pd.read_csv(calibrated_result_file, index_col=0, parse_dates=['Date'], date_format='%Y-%m-%d')
             self.meteo_df['Weather'] = self.meteo_df['Weather'].astype(str)
@@ -576,7 +636,18 @@ class DownscalingModel():
             self.meteo_df = self.meteo_df.drop(self.meteo_df.columns[0], axis=1)
         self.meteo_df.index = pd.to_datetime(self.meteo_df.index)
 
+
     def discard_calibrated_parameter_outliers(self, labels, percentage, labels_to_discard):
+        """
+		Remove extreme parameter values to filter outliers.
+
+		@param labels (list of str)
+		    Parameter columns to compute quantiles for filtering.
+		@param percentage (float)
+		    Quantile threshold for outlier removal (e.g., 0.05).
+		@param labels_to_discard (list of str)
+		    Columns to set to NaN if they contain outliers.
+		"""
         # Remove rows with too high or low a, b, c values
         # to get rid of outliers.
         final_mask = pd.Series(True, index=self.meteo_df.index)  # Initialize with correct shape
@@ -589,7 +660,16 @@ class DownscalingModel():
             self.meteo_df.loc[~final_mask, label] = np.nan  # Filtering the initial dataframe with the final mask
         self.meteo_df.index = pd.to_datetime(self.meteo_df.index)
         
+        
     def classify_according_to_weather(self, weather_list):
+        """
+		Classify days according to observed weather conditions.
+
+		Categories: 'Freezing', 'Melting', 'Raining', 'Snowing', 'None'.
+
+		@param weather_list (list, optional)
+		    Not used; placeholder for possible extension.
+		"""
         # Categorize according to weather
         self.meteo_df["Weather"] = 'None'
         self.meteo_df.loc[(self.meteo_df["Temperature"] <= 0), "Weather"] = 'Freezing'

@@ -74,6 +74,7 @@ def test_different_functions(meteo_df, variable):
 
     return type, params, statis
 
+
 def find_and_save_best_pdf_functions(meteo_df, filename, function):
     """
     This function applies `test_different_functions` to a predefined set of 
@@ -167,6 +168,7 @@ def get_KDE_model(meteo_df, variable, weather_list=None):
         kde = stats.gaussian_kde(data)
         return kde, None
 
+
 def add_to_kde_dict(kde_dict, kde, var, weather_list):
     """
     Adds KDE models to a dictionary with appropriate keys, optionally separating them 
@@ -194,6 +196,7 @@ def add_to_kde_dict(kde_dict, kde, var, weather_list):
             kde_dict[key] = k
     else:
         kde_dict[var] = kde
+
 
 def KDE_computations(meteo_df, function, weather_list):
     """
@@ -232,6 +235,7 @@ def KDE_computations(meteo_df, function, weather_list):
         add_to_kde_dict(kde_dict, kde, "$d$", weather_list)
 
     return kde_dict
+
 
 def sample_weather_distribs_dependently(meteo_df, state_of_days):
     """
@@ -276,6 +280,7 @@ def sample_weather_distribs_dependently(meteo_df, state_of_days):
         c_distrib.append(c)
         M_distrib.append(M)
     return a_distrib, b_distrib, c_distrib, M_distrib
+
 
 def sample_weather_kde_independently(var, kde_dict, state_of_days):
     """
