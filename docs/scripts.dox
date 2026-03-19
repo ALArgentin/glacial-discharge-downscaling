@@ -42,6 +42,6 @@
  *
  * \section code Code
  *
- * \verbinclude ../examples/main.py
+ * \include{lineno} main.py
  */
  
