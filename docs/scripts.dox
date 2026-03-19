@@ -42,6 +42,6 @@
  *
  * \section code Code
  *
- * \verbinclude ../downscaling/main.py
+ * \verbinclude main.py
  */
  
